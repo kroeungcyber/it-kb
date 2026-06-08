@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>itkb — Documents</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<nav>
+  <a href="/">Chat</a>
+  <a href="/docs-ui" class="active">Documents</a>
+  <a href="/history">History</a>
+</nav>
+<div class="container">
+  <h2 style="margin: 1rem 0; color: #94a3b8;">Knowledge Base Documents</h2>
+  <div id="add-form">
+    <input id="add-input" type="text" placeholder="File path or https://… URL">
+    <button id="add-btn" style="background:#7c3aed;color:white;border:none;padding:0.6rem 1.25rem;border-radius:6px;cursor:pointer;">Add</button>
+  </div>
+  <table id="docs-table">
+    <thead>
+      <tr>
+        <th>Title / Path</th><th>Type</th><th>Chunks</th><th>Ingested</th><th></th>
+      </tr>
+    </thead>
+    <tbody id="docs-tbody"></tbody>
+  </table>
+</div>
+<script src="/static/app.js"></script>
+</body>
+</html>
