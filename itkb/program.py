@@ -1,0 +1,97 @@
+# itkb/program.py
+"""Read and enforce PROGRAM.md — the central control file."""
+from __future__ import annotations
+import re
+from pathlib import Path
+from typing import Optional
+
+PROGRAM_PATH = Path(__file__).parent.parent / "PROGRAM.md"
+
+
+def _read_program() -> str:
+    return PROGRAM_PATH.read_text()
+
+
+def _parse_yaml_block(text: str, heading: str) -> dict:
+    """Extract a YAML-like block under a markdown heading."""
+    pattern = rf"## \d*\.?\s*{re.escape(heading)}.*?\n```yaml\n(.*?)\n```"
+    m = re.search(pattern, text, re.DOTALL | re.IGNORECASE)
+    if not m:
+        return {}
+    out = {}
+    for line in m.group(1).strip().split("\n"):
+        line = line.strip()
+        if ":" in line and not line.startswith("#"):
+            key, _, val = line.partition(":")
+            out[key.strip()] = val.strip().strip('"').strip("'")
+    return out
+
+
+def _parse_list(text: str, heading: str) -> list[str]:
+    """Extract a YAML list block under a markdown heading."""
+    pattern = rf"## \d*\.?\s*{re.escape(heading)}.*?\n```yaml\n(.*?)\n```"
+    m = re.search(pattern, text, re.DOTALL | re.IGNORECASE)
+    if not m:
+        return []
+    items = []
+    for line in m.group(1).strip().split("\n"):
+        stripped = line.strip().lstrip("- ").strip().strip('"').strip("'")
+        if stripped and not stripped.startswith("#"):
+            items.append(stripped)
+    return items
+
+
+# ── Public API ────────────────────────────────────────────────────────
+
+def commands_enabled() -> bool:
+    text = _read_program()
+    block = _parse_yaml_block(text, "Command Execution")
+    return block.get("commands_enabled", "false").lower() == "true"
+
+
+def ingest_path_allowed(path: str) -> bool:
+    whitelist = _parse_list(_read_program(), "Path Whitelist")
+    if not whitelist:
+        return True  # no whitelist = allow all
+    path_str = str(path)
+    return any(path_str.startswith(w) for w in whitelist)
+
+
+def ingest_url_allowed(url: str) -> bool:
+    whitelist = _parse_list(_read_program(), "URL Whitelist")
+    if not whitelist:
+        return True
+    return any(url.startswith(w) for w in whitelist)
+
+
+def get_models() -> dict:
+    text = _read_program()
+    return _parse_yaml_block(text, "Models")
+
+
+def get_query_settings() -> dict:
+    text = _read_program()
+    return _parse_yaml_block(text, "Query Behavior")
+
+
+def get_web_settings() -> dict:
+    text = _read_program()
+    return _parse_yaml_block(text, "Web UI")
+
+
+def reload_config_from_program():
+    """Sync config.toml from PROGRAM.md models."""
+    from itkb.config import load_config, save_config, Config
+    cfg = load_config()
+    models = get_models()
+    if models.get("chat"):
+        cfg.model = models["chat"]
+    if models.get("embed"):
+        cfg.embed_model = models["embed"]
+    settings = get_query_settings()
+    if settings.get("top_k"):
+        cfg.top_k = int(settings["top_k"])
+    if settings.get("trusted"):
+        cfg.trusted = settings["trusted"].lower() == "true"
+    save_config(cfg)
+    return cfg

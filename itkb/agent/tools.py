@@ -90,6 +90,11 @@ def run_command(
     query_id: str,
     timeout: int = 30,
 ) -> str:
+    from itkb.program import commands_enabled
+
+    if not commands_enabled():
+        return "[Commands are disabled in PROGRAM.md. Set commands_enabled: true to enable.]"
+
     _assert_not_blocked(command)
 
     if not confirm_fn(command):

@@ -47,6 +47,11 @@ def add(
 
 
 def _ingest_file(path: Path, cfg):
+    from itkb.program import ingest_path_allowed
+
+    if not ingest_path_allowed(str(path)):
+        console.print(f"[red]Blocked by PROGRAM.md:[/red] {path} is not in the ingest path whitelist")
+        return
     from itkb.ingestion.parsers import parse_file
     from itkb.ingestion.chunker import chunk_text
     from itkb.ingestion.embedder import embed_texts
@@ -91,6 +96,11 @@ def _ingest_file(path: Path, cfg):
 
 
 def _ingest_url(url: str, cfg):
+    from itkb.program import ingest_url_allowed
+
+    if not ingest_url_allowed(url):
+        console.print(f"[red]Blocked by PROGRAM.md:[/red] {url} is not in the ingest URL whitelist")
+        return
     from itkb.ingestion.parsers import parse_url
     from itkb.ingestion.chunker import chunk_text
     from itkb.ingestion.embedder import embed_texts

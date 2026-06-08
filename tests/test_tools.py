@@ -39,16 +39,19 @@ def test_suggest_followups_returns_three(mocker):
     questions = suggest_followups("nginx is running", model="llama3.1:8b")
     assert len(questions) == 3
 
-def test_run_command_blocks_dangerous_patterns():
+def test_run_command_blocks_dangerous_patterns(mocker):
+    mocker.patch("itkb.program.commands_enabled", return_value=True)
     with pytest.raises(ValueError, match="blocked"):
         run_command("rm -rf /", confirm_fn=lambda cmd: True, db_path=":memory:", query_id="q1")
 
 def test_run_command_skips_when_confirm_returns_false(mocker):
+    mocker.patch("itkb.program.commands_enabled", return_value=True)
     mocker.patch("itkb.agent.tools.subprocess.run")
     result = run_command("ls -la", confirm_fn=lambda cmd: False, db_path=":memory:", query_id="q1")
     assert result == "[Command skipped by user]"
 
 def test_run_command_executes_when_confirmed(mocker, db_path):
+    mocker.patch("itkb.program.commands_enabled", return_value=True)
     mock_run = mocker.patch("itkb.agent.tools.subprocess.run")
     mock_run.return_value.stdout = "file1\nfile2"
     mock_run.return_value.stderr = ""
@@ -56,3 +59,8 @@ def test_run_command_executes_when_confirmed(mocker, db_path):
 
     result = run_command("ls -la", confirm_fn=lambda cmd: True, db_path=db_path, query_id="q1")
     assert "file1" in result
+
+def test_run_command_blocked_when_commands_disabled(mocker):
+    mocker.patch("itkb.program.commands_enabled", return_value=False)
+    result = run_command("ls", confirm_fn=lambda cmd: True, db_path=":memory:", query_id="q1")
+    assert "PROGRAM.md" in result
