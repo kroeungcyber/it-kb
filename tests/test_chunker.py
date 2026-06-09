@@ -1,5 +1,5 @@
 # tests/test_chunker.py
-from itkb.ingestion.chunker import chunk_text, RawChunk
+from itkb.ingestion.chunker import chunk_text
 
 SHORT_TEXT = "This is a short note about restarting nginx."
 

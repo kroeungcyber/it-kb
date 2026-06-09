@@ -3,7 +3,7 @@ from __future__ import annotations
 import shlex
 import subprocess
 from datetime import datetime, timezone
-from typing import Callable, Optional
+from typing import Callable
 import ollama
 
 from itkb.store.db import search_chunks, log_command

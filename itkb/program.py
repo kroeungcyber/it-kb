@@ -3,7 +3,6 @@
 from __future__ import annotations
 import re
 from pathlib import Path
-from typing import Optional
 
 PROGRAM_PATH = Path(__file__).parent.parent / "PROGRAM.md"
 
@@ -81,7 +80,7 @@ def get_web_settings() -> dict:
 
 def reload_config_from_program():
     """Sync config.toml from PROGRAM.md models."""
-    from itkb.config import load_config, save_config, Config
+    from itkb.config import load_config, save_config
     cfg = load_config()
     models = get_models()
     if models.get("chat"):

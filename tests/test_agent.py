@@ -1,5 +1,4 @@
 # tests/test_agent.py
-import pytest
 from itkb.agent.loop import run_agent
 from itkb.config import Config
 
@@ -38,6 +37,7 @@ def test_agent_calls_search_kb_tool(mocker, db_path):
     insert_chunks(db_path, [Chunk(None, doc.id, "nginx restart command", 0)], [[0.1]*768])
 
     call_count = 0
+
     def fake_chat(**kwargs):
         nonlocal call_count
         call_count += 1
@@ -54,11 +54,12 @@ def test_agent_calls_search_kb_tool(mocker, db_path):
     mocker.patch("itkb.agent.loop.embed_query", return_value=[0.1]*768)
     mocker.patch("itkb.agent.loop.suggest_followups", return_value=[])
 
-    tokens = list(run_agent("restart nginx", _cfg(db_path), confirm_fn=lambda cmd: False))
+    list(run_agent("restart nginx", _cfg(db_path), confirm_fn=lambda cmd: False))
     assert call_count == 2
 
 def test_agent_stops_after_max_iterations(mocker, db_path):
     call_count = 0
+
     def always_calls_tool(**kwargs):
         nonlocal call_count
         call_count += 1

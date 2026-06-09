@@ -1,6 +1,5 @@
 # tests/test_parsers.py
 import pytest
-from pathlib import Path
 from itkb.ingestion.parsers import parse_file, parse_url
 
 def test_parse_markdown(tmp_path):

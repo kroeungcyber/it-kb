@@ -1,8 +1,5 @@
 # tests/conftest.py
 import pytest
-import pysqlite3.dbapi2 as sqlite3
-import sqlite_vec
-from pathlib import Path
 from itkb.store.db import init_db
 
 @pytest.fixture

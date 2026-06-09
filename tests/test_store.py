@@ -1,7 +1,6 @@
 # tests/test_store.py
-import pytest
 from itkb.store.db import (
-    init_db, upsert_document, get_document, delete_document,
+    upsert_document, get_document, delete_document,
     insert_chunks, search_chunks, list_documents, log_command, doc_id
 )
 from itkb.store.models import Document, Chunk

@@ -1,5 +1,4 @@
 # tests/test_embedder.py
-import pytest
 from itkb.ingestion.embedder import embed_texts, embed_query
 
 def test_embed_texts_returns_one_vector_per_text(mocker):

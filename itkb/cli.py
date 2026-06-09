@@ -1,12 +1,10 @@
 # itkb/cli.py
 from __future__ import annotations
-import sys
 from pathlib import Path
 from typing import Optional
 import typer
 from rich.console import Console
 from rich.table import Table
-from rich.markdown import Markdown
 
 app = typer.Typer(name="kb", help="Local LLM IT Knowledge Base", add_completion=False)
 console = Console()
@@ -138,6 +136,7 @@ def _watch_directory(path: Path, cfg):
         def on_modified(self, event):
             if not event.is_directory:
                 _ingest_file(Path(event.src_path), cfg)
+
         def on_created(self, event):
             if not event.is_directory:
                 _ingest_file(Path(event.src_path), cfg)

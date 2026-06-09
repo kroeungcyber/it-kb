@@ -1,6 +1,4 @@
 # tests/test_config.py
-import pytest
-from pathlib import Path
 from itkb.config import Config, load_config, save_config
 
 def test_default_config_values():
