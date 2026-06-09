@@ -22,6 +22,7 @@ embed: embeddinggemma:latest    # embedding model for vector search
 ingest_paths:
   - /Users/bila/notes/
   - /Users/bila/itkb/
+  - /Users/bila/Desktop/it-checklist/
   - /tmp/
 ```
 
