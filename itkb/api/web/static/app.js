@@ -21,6 +21,7 @@ function sendQuestion() {
 
     appendMsg("user", q);
     const assistantEl = appendMsg("assistant", "");
+    showTyping(assistantEl);
 
     fetch("/api/query", {
         method: "POST",
@@ -31,6 +32,7 @@ function sendQuestion() {
         const decoder = new TextDecoder();
         let buffer = "";
         let fullText = "";
+        let firstToken = true;
 
         function read() {
             reader.read().then(({ done, value }) => {
@@ -46,6 +48,7 @@ function sendQuestion() {
                         const { token } = JSON.parse(data);
                         fullText += token;
                         renderAssistantMsg(assistantEl, fullText);
+                        firstToken = false;
                     } catch {}
                 }
                 read();
@@ -53,6 +56,17 @@ function sendQuestion() {
         }
         read();
     }).catch(() => { sendBtn.disabled = false; });
+}
+
+function showTyping(el) {
+    el.textContent = "";
+    const div = document.createElement("div");
+    div.className = "typing-indicator";
+    for (let i = 0; i < 3; i++) {
+        const dot = document.createElement("span");
+        div.appendChild(dot);
+    }
+    el.appendChild(div);
 }
 
 function renderAssistantMsg(el, text) {

@@ -55,6 +55,11 @@ def history_page():
     return (_TEMPLATES / "history.html").read_text()
 
 
+@app.get("/notes", response_class=HTMLResponse)
+def notes_page():
+    return (_TEMPLATES / "notes.html").read_text()
+
+
 @app.post("/api/query")
 def api_query(req: QueryRequest):
     from itkb.agent.loop import run_agent
@@ -130,3 +135,11 @@ def api_run_command(req: CommandRequest):
         return {"output": output}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/api/notes")
+def api_list_notes():
+    from itkb.store.db import list_notes
+
+    cfg = load_config()
+    return list_notes(cfg.db_path)
