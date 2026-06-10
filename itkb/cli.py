@@ -7,7 +7,7 @@ from rich.console import Console
 from rich.table import Table
 
 app = typer.Typer(name="kb", help="Local LLM IT Knowledge Base", add_completion=False)
-console = Console()
+console = Console(highlight=False)
 
 
 def _cfg():
