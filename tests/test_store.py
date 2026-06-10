@@ -27,6 +27,8 @@ def test_init_creates_tables(db_path):
     assert "documents" in tables
     assert "chunks" in tables
     assert "command_history" in tables
+    assert "query_context" in tables
+    assert "incident_notes" in tables
 
 def test_upsert_and_get_document(db_path):
     doc = make_doc()

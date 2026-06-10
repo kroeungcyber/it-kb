@@ -15,6 +15,7 @@ class Config:
     db_path: str = str(Path.home() / ".itkb" / "kb.sqlite")
     top_k: int = 5
     trusted: bool = False
+    tavily_api_key: str = ""
 
 def load_config() -> Config:
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)

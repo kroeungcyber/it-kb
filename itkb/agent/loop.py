@@ -1,13 +1,14 @@
 # itkb/agent/loop.py
 from __future__ import annotations
 import json
+import os
 import uuid
 from typing import Callable, Generator
 import ollama
 
 from itkb.agent.prompts import SYSTEM_PROMPT
 from itkb.agent.tools import (
-    TOOL_DEFINITIONS, search_kb, cite_sources, suggest_followups, run_command
+    TOOL_DEFINITIONS, search_kb, web_search, cite_sources, suggest_followups, run_command
 )
 from itkb.ingestion.embedder import embed_query
 from itkb.config import Config
@@ -15,18 +16,46 @@ from itkb.config import Config
 MAX_ITERATIONS = 5
 
 
+def _load_dotenv() -> None:
+    """Load TAVILY_API_KEY from ~/itkb/.env into os.environ if present."""
+    from pathlib import Path
+    env_file = Path.home() / "itkb" / ".env"
+    if not env_file.exists():
+        return
+    for line in env_file.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, val = line.partition("=")
+        key, val = key.strip(), val.strip().strip("\"'")
+        if key and key not in os.environ:
+            os.environ[key] = val
+
+
+def _resolve_api_key(cfg: Config) -> str:
+    """Priority: config.toml > .env > shell env var."""
+    _load_dotenv()
+    return cfg.tavily_api_key or os.environ.get("TAVILY_API_KEY", "")
+
+
 def run_agent(
     question: str,
     cfg: Config,
     confirm_fn: Callable[[str], bool],
+    collected_chunks: list | None = None,
+    query_id_holder: list | None = None,
 ) -> Generator[str, None, None]:
     """Yield streamed response tokens including citations and follow-ups."""
     query_id = uuid.uuid4().hex[:8]
+    if query_id_holder is not None:
+        query_id_holder.append(query_id)
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "user", "content": question},
     ]
     context_chunks: list[dict] = []
+
+    api_key = _resolve_api_key(cfg)
 
     for _ in range(MAX_ITERATIONS):
         response = ollama.chat(
@@ -58,10 +87,16 @@ def run_agent(
                 q_emb = embed_query(args["query"], cfg.embed_model)
                 chunks = search_kb(q_emb, cfg.db_path, args.get("top_k", cfg.top_k))
                 context_chunks.extend(chunks)
+                if collected_chunks is not None:
+                    collected_chunks.extend(str(c["id"]) for c in chunks)
                 tool_result = "\n\n".join(
                     f"[{c['source']}]\n{c['content']}" for c in chunks
                 ) or "No results found."
                 messages.append({"role": "tool", "content": tool_result})
+
+            elif name == "web_search":
+                result = web_search(args["query"], api_key)
+                messages.append({"role": "tool", "content": result})
 
             elif name == "run_command":
                 output = run_command(args["command"], confirm_fn, cfg.db_path, query_id)

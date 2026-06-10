@@ -4,6 +4,7 @@ import hashlib
 import json
 import pysqlite3.dbapi2 as sqlite3
 import struct
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 import sqlite_vec
@@ -55,6 +56,19 @@ def init_db(db_path: str) -> None:
             exit_code INTEGER,
             ran_at    TEXT,
             query_id  TEXT
+        );
+        CREATE TABLE IF NOT EXISTS query_context (
+            id        TEXT PRIMARY KEY,
+            question  TEXT NOT NULL,
+            chunk_ids TEXT NOT NULL,
+            asked_at  TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS incident_notes (
+            id               INTEGER PRIMARY KEY AUTOINCREMENT,
+            body             TEXT NOT NULL,
+            query_context_id TEXT,
+            chunk_ids        TEXT,
+            created_at       TEXT NOT NULL
         );
     """)
     conn.commit()
@@ -160,3 +174,74 @@ def log_command(db_path: str, command: str, output: str, exit_code: int,
     )
     conn.commit()
     conn.close()
+
+
+def save_query_context(db_path: str, query_id: str, question: str,
+                       chunk_ids: list[str]) -> None:
+    conn = _connect(db_path)
+    conn.execute(
+        "INSERT INTO query_context (id, question, chunk_ids, asked_at) "
+        "VALUES (?, ?, ?, ?)",
+        (query_id, question, json.dumps(chunk_ids),
+         datetime.now(timezone.utc).isoformat())
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_latest_query_context(db_path: str) -> dict | None:
+    conn = _connect(db_path)
+    row = conn.execute(
+        "SELECT id, question, chunk_ids, asked_at FROM query_context "
+        "ORDER BY asked_at DESC LIMIT 1"
+    ).fetchone()
+    conn.close()
+    if row is None:
+        return None
+    return {
+        "id": row[0],
+        "question": row[1],
+        "chunk_ids": json.loads(row[2]),
+        "asked_at": row[3],
+    }
+
+
+def save_note(db_path: str, body: str) -> dict | None:
+    ctx = get_latest_query_context(db_path)
+    conn = _connect(db_path)
+    conn.execute(
+        "INSERT INTO incident_notes (body, query_context_id, chunk_ids, created_at) "
+        "VALUES (?, ?, ?, ?)",
+        (
+            body,
+            ctx["id"] if ctx else None,
+            json.dumps(ctx["chunk_ids"]) if ctx else None,
+            datetime.now(timezone.utc).isoformat(),
+        )
+    )
+    conn.commit()
+    conn.close()
+    return ctx
+
+
+def list_notes(db_path: str) -> list[dict]:
+    conn = _connect(db_path)
+    rows = conn.execute(
+        "SELECT n.id, n.body, n.query_context_id, n.chunk_ids, n.created_at, "
+        "q.question "
+        "FROM incident_notes n "
+        "LEFT JOIN query_context q ON q.id = n.query_context_id "
+        "ORDER BY n.created_at DESC"
+    ).fetchall()
+    conn.close()
+    return [
+        {
+            "id": r[0],
+            "body": r[1],
+            "query_context_id": r[2],
+            "chunk_ids": json.loads(r[3]) if r[3] else None,
+            "created_at": r[4],
+            "linked_question": r[5],
+        }
+        for r in rows
+    ]

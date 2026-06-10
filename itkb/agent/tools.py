@@ -4,6 +4,7 @@ import shlex
 import subprocess
 from datetime import datetime, timezone
 from typing import Callable
+import httpx
 import ollama
 
 from itkb.store.db import search_chunks, log_command
@@ -21,6 +22,23 @@ TOOL_DEFINITIONS = [
                 "properties": {
                     "query": {"type": "string", "description": "Search query"},
                     "top_k": {"type": "integer", "description": "Number of results to return", "default": 5},
+                },
+                "required": ["query"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "web_search",
+            "description": (
+                "Search the web for current information using Tavily. "
+                "Use for topics not in the local KB or when you need up-to-date facts."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "Search query"},
                 },
                 "required": ["query"],
             },
@@ -47,6 +65,7 @@ def search_kb(query_embedding: list[float], db_path: str, top_k: int) -> list[di
     results = search_chunks(db_path, query_embedding, top_k)
     return [
         {
+            "id": chunk.id,
             "content": chunk.content,
             "source": chunk.doc_id,
             "metadata": chunk.metadata,
@@ -54,6 +73,48 @@ def search_kb(query_embedding: list[float], db_path: str, top_k: int) -> list[di
         }
         for chunk, dist in results
     ]
+
+
+def web_search(query: str, api_key: str) -> str:
+    """Search the web via Tavily API. Returns formatted results."""
+    if not api_key:
+        return (
+            "[Web search unavailable: no Tavily API key configured. "
+            "Set tavily_api_key in ~/.itkb/config.toml or TAVILY_API_KEY env var.]"
+        )
+
+    try:
+        resp = httpx.post(
+            "https://api.tavily.com/search",
+            json={
+                "api_key": api_key,
+                "query": query,
+                "search_depth": "basic",
+                "max_results": 5,
+                "include_answer": True,
+            },
+            timeout=15,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+    except Exception as e:
+        return f"[Web search error: {e}]"
+
+    lines = []
+    answer = data.get("answer", "")
+    if answer:
+        lines.append(f"Summary: {answer}\n")
+
+    results = data.get("results", [])
+    if results:
+        lines.append("Top results:")
+        for r in results:
+            title = r.get("title", "Untitled")
+            url = r.get("url", "")
+            content = r.get("content", "")
+            lines.append(f"- {title}\n  {url}\n  {content}")
+
+    return "\n".join(lines) or "[No results found.]"
 
 
 def cite_sources(chunks: list[dict]) -> str:

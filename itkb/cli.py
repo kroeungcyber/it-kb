@@ -161,7 +161,7 @@ def query(
 ):
     """Ask a question. Streams the answer with citations."""
     from itkb.agent.loop import run_agent
-    from itkb.store.db import init_db
+    from itkb.store.db import init_db, save_query_context
 
     cfg = _cfg()
     if k > 0:
@@ -175,11 +175,17 @@ def query(
         answer = console.input("Run this? [[y]/N] ").strip().lower()
         return answer == "y"
 
+    chunk_collector: list = []
+    qid_holder: list = []
     full_response = ""
-    for token in run_agent(question, cfg, confirm_fn=confirm):
+    for token in run_agent(question, cfg, confirm_fn=confirm,
+                           collected_chunks=chunk_collector,
+                           query_id_holder=qid_holder):
         console.print(token, end="")
         full_response += token
     console.print()
+    if qid_holder:
+        save_query_context(cfg.db_path, qid_holder[0], question, chunk_collector)
 
 
 @app.command(name="list")
@@ -274,6 +280,8 @@ def config(
     cfg = load_config()
     if action == "show":
         for k, v in asdict(cfg).items():
+            if k == "tavily_api_key" and v:
+                v = v[:8] + "…" if len(v) > 8 else "***"
             console.print(f"  {k} = {v}")
     elif action == "set":
         if not key or value is None:
@@ -289,3 +297,48 @@ def config(
         from itkb.config import Config
         save_config(Config(**d))
         console.print(f"[green]Set {key} = {value}[/green]")
+
+
+@app.command()
+def note(body: str = typer.Argument(..., help="Note text to record")):
+    """Record a post-incident note, auto-linked to the most recent query."""
+    from itkb.store.db import init_db, save_note
+
+    cfg = _cfg()
+    init_db(cfg.db_path)
+    ctx = save_note(cfg.db_path, body)
+    if ctx:
+        console.print(
+            f"[green]Note saved[/green] (linked to query: {ctx['question'][:50]})"
+        )
+    else:
+        console.print("[green]Note saved[/green] (no recent query to link)")
+
+
+@app.command(name="notes")
+def list_notes_cmd():
+    """List all incident notes with linked queries."""
+    from itkb.store.db import init_db, list_notes
+
+    cfg = _cfg()
+    init_db(cfg.db_path)
+    notes = list_notes(cfg.db_path)
+
+    if not notes:
+        console.print("[dim]No notes yet. Use [bold]kb note[/bold] to record one.[/dim]")
+        return
+
+    table = Table(title="Incident Notes")
+    table.add_column("ID", style="dim", max_width=6)
+    table.add_column("Note", max_width=50)
+    table.add_column("Linked Query", max_width=40)
+    table.add_column("Created", max_width=20)
+    for n in notes:
+        linked = n["linked_question"] or "[dim]—[/dim]"
+        table.add_row(
+            str(n["id"]),
+            n["body"][:47] + ("..." if len(n["body"]) > 47 else ""),
+            linked[:37] + ("..." if len(linked) > 37 else ""),
+            n["created_at"][:19],
+        )
+    console.print(table)
