@@ -23,6 +23,8 @@ ingest_paths:
   - /Users/bila/notes/
   - /Users/bila/itkb/
   - /Users/bila/Desktop/it-checklist/
+  - /Users/bila/dotfiles/
+  - /etc/
   - /tmp/
 ```
 
@@ -35,6 +37,11 @@ ingest_urls:
   - https://wiki.
   - https://docs.
   - https://man.
+  - https://wiki.archlinux.org/
+  - https://help.ubuntu.com/
+  - https://kubernetes.io/docs/
+  - https://github.com/
+  - https://raw.githubusercontent.com/
 ```
 
 ## 4. Command Execution
@@ -84,3 +91,4 @@ Edit below when you approve changes:
 | Date | What | Approved |
 |------|------|----------|
 | 2026-06-08 | Initial setup | ✓ |
+| 2026-06-10 | Added /etc/ and ~/dotfiles/ to ingest_paths; expanded ingest_urls with ArchWiki, Ubuntu, k8s, GitHub; created ~/notes/ | ✓ |
