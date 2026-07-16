@@ -31,6 +31,14 @@ def test_cite_sources_deduplicates(db_path):
     assert result.count("docabc") == 1
     assert "docxyz" in result
 
+def test_cite_sources_includes_heading_when_present(db_path):
+    chunks = [
+        {"source": "docabc", "content": "c1",
+         "metadata": {"source_path": "/notes/a.md", "heading": "Docker > Networking"}},
+    ]
+    result = cite_sources(chunks)
+    assert "/notes/a.md — Docker > Networking" in result
+
 def test_suggest_followups_returns_three(mocker):
     mock_chat = mocker.patch("itkb.agent.tools.ollama.chat")
     mock_chat.return_value = {

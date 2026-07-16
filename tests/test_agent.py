@@ -1,5 +1,5 @@
 # tests/test_agent.py
-from itkb.agent.loop import run_agent
+from itkb.agent.loop import run_agent, _format_chunk
 from itkb.config import Config
 
 def _cfg(db_path):
@@ -76,3 +76,13 @@ def test_agent_stops_after_max_iterations(mocker, db_path):
 
     list(run_agent("keep searching forever", _cfg(db_path), confirm_fn=lambda cmd: False))
     assert call_count <= 6  # max 5 iterations + 1 forced final answer
+
+def test_format_chunk_includes_heading_when_present():
+    chunk = {"source": "docabc", "content": "restart nginx", "metadata": {"heading": "Docker > Networking"}}
+    formatted = _format_chunk(chunk)
+    assert formatted == "[docabc] — Docker > Networking\nrestart nginx"
+
+def test_format_chunk_omits_heading_when_absent():
+    chunk = {"source": "docabc", "content": "restart nginx", "metadata": {}}
+    formatted = _format_chunk(chunk)
+    assert formatted == "[docabc]\nrestart nginx"

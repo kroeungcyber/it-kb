@@ -122,8 +122,11 @@ def cite_sources(chunks: list[dict]) -> str:
     for c in chunks:
         sid = c["source"]
         if sid not in seen:
-            seen[sid] = c.get("metadata", {}).get("source_path", sid)
-    return "\n".join(f"- [{sid}] {path}" for sid, path in seen.items())
+            meta = c.get("metadata", {})
+            path = meta.get("source_path", sid)
+            heading = meta.get("heading")
+            seen[sid] = f"{path} — {heading}" if heading else path
+    return "\n".join(f"- [{sid}] {label}" for sid, label in seen.items())
 
 
 def suggest_followups(answer: str, model: str) -> list[str]:

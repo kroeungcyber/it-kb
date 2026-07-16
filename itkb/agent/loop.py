@@ -16,6 +16,12 @@ from itkb.config import Config
 MAX_ITERATIONS = 5
 
 
+def _format_chunk(c: dict) -> str:
+    heading = c.get("metadata", {}).get("heading")
+    header = f"[{c['source']}]" + (f" — {heading}" if heading else "")
+    return f"{header}\n{c['content']}"
+
+
 def _load_dotenv() -> None:
     """Load TAVILY_API_KEY from ~/itkb/.env into os.environ if present."""
     from pathlib import Path
@@ -90,7 +96,7 @@ def run_agent(
                 if collected_chunks is not None:
                     collected_chunks.extend(str(c["id"]) for c in chunks)
                 tool_result = "\n\n".join(
-                    f"[{c['source']}]\n{c['content']}" for c in chunks
+                    _format_chunk(c) for c in chunks
                 ) or "No results found."
                 messages.append({"role": "tool", "content": tool_result})
 
