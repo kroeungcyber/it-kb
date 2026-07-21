@@ -102,29 +102,37 @@ def _ingest_url(url: str, cfg):
     from itkb.ingestion.parsers import parse_url
     from itkb.ingestion.chunker import chunk_text
     from itkb.ingestion.embedder import embed_texts
-    from itkb.store.db import upsert_document, insert_chunks, doc_id
+    from itkb.store.db import upsert_document, insert_chunks, delete_document, doc_id, get_document
     from itkb.store.models import Document, Chunk
     from datetime import datetime, timezone
     import time
 
-    text, title = parse_url(url)
-    raw_chunks = chunk_text(text, url)
-    embeddings = embed_texts([c.content for c in raw_chunks], cfg.embed_model)
+    try:
+        text, title = parse_url(url)
+        raw_chunks = chunk_text(text, url)
+        embeddings = embed_texts([c.content for c in raw_chunks], cfg.embed_model)
 
-    did = doc_id(url)
-    doc = Document(
-        id=did, source_path=url, title=title, file_type="url",
-        ingested_at=datetime.now(timezone.utc).isoformat(),
-        chunk_count=len(raw_chunks), mtime=time.time(),
-    )
-    upsert_document(cfg.db_path, doc)
-    chunks = [
-        Chunk(id=None, doc_id=did, content=rc.content, chunk_index=rc.chunk_index,
-              metadata={"source_path": url})
-        for rc in raw_chunks
-    ]
-    insert_chunks(cfg.db_path, chunks, embeddings)
-    console.print(f"[green]Ingested URL:[/green] {title} ({len(chunks)} chunks)")
+        did = doc_id(url)
+        if get_document(cfg.db_path, url):
+            delete_document(cfg.db_path, did)
+
+        doc = Document(
+            id=did, source_path=url, title=title, file_type="url",
+            ingested_at=datetime.now(timezone.utc).isoformat(),
+            chunk_count=len(raw_chunks), mtime=time.time(),
+        )
+        upsert_document(cfg.db_path, doc)
+        chunks = [
+            Chunk(id=None, doc_id=did, content=rc.content, chunk_index=rc.chunk_index,
+                  metadata={"page": rc.page_number, "heading": rc.section_heading,
+                             "source_path": url})
+            for rc in raw_chunks
+        ]
+        insert_chunks(cfg.db_path, chunks, embeddings)
+        console.print(f"[green]Ingested URL:[/green] {title} ({len(chunks)} chunks)")
+
+    except Exception as e:
+        console.print(f"[red]Error ingesting {url}:[/red] {e}")
 
 
 def _watch_directory(path: Path, cfg):
@@ -235,7 +243,10 @@ def reindex():
     console.print(f"Re-indexing {len(docs)} documents…")
     for doc in docs:
         delete_document(cfg.db_path, doc.id)
-        _ingest_file(Path(doc.source_path), cfg)
+        if doc.file_type == "url":
+            _ingest_url(doc.source_path, cfg)
+        else:
+            _ingest_file(Path(doc.source_path), cfg)
     console.print("[green]Reindex complete.[/green]")
 
 
