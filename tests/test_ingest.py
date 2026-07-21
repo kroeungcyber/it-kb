@@ -11,8 +11,9 @@ import json
 import pysqlite3.dbapi2 as sqlite3
 import pytest
 
-from itkb.cli import _ingest_file, _ingest_url
+from itkb.cli import _ingest_file, _ingest_url, reindex
 from itkb.config import Config
+from itkb.store.db import list_documents
 
 
 @pytest.fixture
@@ -100,3 +101,48 @@ def test_ingest_url_error_is_caught_not_raised(cfg, mocker):
     _ingest_url("https://wiki.example.com/nginx", cfg)  # must not raise
 
     assert _chunk_rows(cfg.db_path) == []
+
+
+def test_reindex_skips_missing_file_without_deleting_it(tmp_path, cfg, fake_embedding_fn, mocker):
+    """A doc whose source file vanished must survive reindex, not be silently dropped."""
+    f = tmp_path / "gone.md"
+    f.write_text("# Gone\n\nWill be deleted before reindex.\n")
+
+    mocker.patch("itkb.program.ingest_path_allowed", return_value=True)
+    mocker.patch("itkb.ingestion.embedder.embed_texts",
+                 side_effect=lambda texts, model: [fake_embedding_fn(t, model) for t in texts])
+
+    _ingest_file(f, cfg)
+    assert len(list_documents(cfg.db_path)) == 1
+
+    f.unlink()  # simulate the source file having disappeared since ingest
+    mocker.patch("itkb.cli._cfg", return_value=cfg)
+    mocker.patch("itkb.store.db.init_db")
+
+    reindex()
+
+    docs = list_documents(cfg.db_path)
+    assert len(docs) == 1  # document must NOT be deleted just because its source is gone
+    assert _chunk_rows(cfg.db_path, docs[0].id) != []
+
+
+def test_reindex_forces_reingest_even_when_mtime_unchanged(tmp_path, cfg, fake_embedding_fn, mocker):
+    """reindex exists to re-embed after a model/chunker change; mtime-skip must not block it."""
+    f = tmp_path / "notes.md"
+    f.write_text("# Old Heading\n\nBody text.\n")
+
+    mocker.patch("itkb.program.ingest_path_allowed", return_value=True)
+    mocker.patch("itkb.ingestion.embedder.embed_texts",
+                 side_effect=lambda texts, model: [fake_embedding_fn(t, model) for t in texts])
+
+    _ingest_file(f, cfg)
+    before = _chunk_rows(cfg.db_path)
+    assert len(before) == 1
+
+    mocker.patch("itkb.cli._cfg", return_value=cfg)
+    mocker.patch("itkb.store.db.init_db")
+
+    reindex()  # file's mtime hasn't changed, but reindex must still re-ingest it
+
+    after = _chunk_rows(cfg.db_path)
+    assert len(after) == 1  # replaced, not duplicated or skipped

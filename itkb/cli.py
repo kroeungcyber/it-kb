@@ -44,7 +44,7 @@ def add(
         raise typer.Exit(1)
 
 
-def _ingest_file(path: Path, cfg):
+def _ingest_file(path: Path, cfg, force: bool = False):
     from itkb.program import ingest_path_allowed
 
     if not ingest_path_allowed(str(path)):
@@ -60,7 +60,7 @@ def _ingest_file(path: Path, cfg):
     try:
         mtime = path.stat().st_mtime
         existing = get_document(cfg.db_path, str(path))
-        if existing and existing.mtime == mtime:
+        if existing and existing.mtime == mtime and not force:
             console.print(f"[dim]Skipped (unchanged): {path}[/dim]")
             return
 
@@ -235,18 +235,21 @@ def delete(doc_id: str = typer.Argument(..., help="Document ID to remove")):
 @app.command()
 def reindex():
     """Re-embed all documents (use after changing the embedding model)."""
-    from itkb.store.db import list_documents, delete_document, init_db
+    from itkb.store.db import list_documents, init_db
 
     cfg = _cfg()
     init_db(cfg.db_path)
     docs = list_documents(cfg.db_path)
     console.print(f"Re-indexing {len(docs)} documents…")
     for doc in docs:
-        delete_document(cfg.db_path, doc.id)
         if doc.file_type == "url":
             _ingest_url(doc.source_path, cfg)
         else:
-            _ingest_file(Path(doc.source_path), cfg)
+            path = Path(doc.source_path)
+            if not path.exists():
+                console.print(f"[yellow]Skipped (source missing):[/yellow] {doc.source_path}")
+                continue
+            _ingest_file(path, cfg, force=True)
     console.print("[green]Reindex complete.[/green]")
 
 
