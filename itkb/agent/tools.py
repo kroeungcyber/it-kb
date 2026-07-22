@@ -7,7 +7,7 @@ from typing import Callable
 import httpx
 import ollama
 
-from itkb.store.db import search_chunks, log_command
+from itkb.store.db import hybrid_search_chunks, log_command
 
 BLOCKED_PATTERNS = ["rm -rf", "dd if=", "mkfs", "shutdown", "reboot", ":(){:|:&};:"]
 
@@ -61,17 +61,19 @@ TOOL_DEFINITIONS = [
 ]
 
 
-def search_kb(query_embedding: list[float], db_path: str, top_k: int) -> list[dict]:
-    results = search_chunks(db_path, query_embedding, top_k)
+def search_kb(query_text: str, query_embedding: list[float], db_path: str, top_k: int,
+              embed_model: str | None = None) -> list[dict]:
+    results = hybrid_search_chunks(db_path, query_embedding, query_text, top_k,
+                                    embed_model=embed_model)
     return [
         {
             "id": chunk.id,
             "content": chunk.content,
             "source": chunk.doc_id,
             "metadata": chunk.metadata,
-            "distance": dist,
+            "score": score,
         }
-        for chunk, dist in results
+        for chunk, score in results
     ]
 
 

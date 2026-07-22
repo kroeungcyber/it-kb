@@ -52,8 +52,15 @@ def ingest_path_allowed(path: str) -> bool:
     whitelist = _parse_list(_read_program(), "Path Whitelist")
     if not whitelist:
         return True  # no whitelist = allow all
-    path_str = str(path)
-    return any(path_str.startswith(w) for w in whitelist)
+    # Resolve both sides (expand ~, collapse ..) before comparing, otherwise
+    # a path like "<whitelisted>/../../../etc/shadow" passes a raw prefix
+    # check while actually escaping the whitelisted directory.
+    resolved = str(Path(path).expanduser().resolve())
+    for w in whitelist:
+        w_resolved = str(Path(w).expanduser().resolve())
+        if resolved == w_resolved or resolved.startswith(w_resolved.rstrip("/") + "/"):
+            return True
+    return False
 
 
 def ingest_url_allowed(url: str) -> bool:

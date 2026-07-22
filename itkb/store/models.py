@@ -13,6 +13,7 @@ class Document:
     ingested_at: str
     chunk_count: int
     mtime: float
+    embed_model: str = ""
 
 @dataclass
 class Chunk:

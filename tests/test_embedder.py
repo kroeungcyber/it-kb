@@ -18,7 +18,37 @@ def test_embed_query_returns_single_vector(mocker):
     vec = embed_query("what is nginx", model="nomic-embed-text")
 
     assert len(vec) == 768
-    mock.assert_called_once_with(model="nomic-embed-text", prompt="what is nginx")
+    mock.assert_called_once_with(model="nomic-embed-text", prompt="search_query: what is nginx")
+
+
+def test_embed_query_applies_model_specific_prefix(mocker):
+    mock = mocker.patch("itkb.ingestion.embedder.ollama.embeddings")
+    mock.return_value = {"embedding": [0.1] * 768}
+
+    embed_query("what is nginx", model="embeddinggemma:latest")
+
+    mock.assert_called_once_with(
+        model="embeddinggemma:latest",
+        prompt="task: search result | query: what is nginx",
+    )
+
+
+def test_embed_texts_applies_document_prefix(mocker):
+    mock = mocker.patch("itkb.ingestion.embedder.ollama.embeddings")
+    mock.return_value = {"embedding": [0.1] * 768}
+
+    embed_texts(["restart nginx"], model="nomic-embed-text")
+
+    mock.assert_called_once_with(model="nomic-embed-text", prompt="search_document: restart nginx")
+
+
+def test_embed_query_unknown_model_has_no_prefix(mocker):
+    mock = mocker.patch("itkb.ingestion.embedder.ollama.embeddings")
+    mock.return_value = {"embedding": [0.1] * 768}
+
+    embed_query("what is nginx", model="llama3.1:8b")
+
+    mock.assert_called_once_with(model="llama3.1:8b", prompt="what is nginx")
 
 def test_embed_texts_batches_correctly(mocker):
     mock = mocker.patch("itkb.ingestion.embedder.ollama.embeddings")

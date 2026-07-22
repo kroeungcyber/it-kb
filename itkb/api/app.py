@@ -32,6 +32,7 @@ class IngestRequest(BaseModel):
 class CommandRequest(BaseModel):
     command: str
     query_id: str
+    token: str
 
 
 @app.on_event("startup")
@@ -62,14 +63,29 @@ def notes_page():
 
 @app.post("/api/query")
 def api_query(req: QueryRequest):
+    import uuid
     from itkb.agent.loop import run_agent
+    from itkb.store.db import create_pending_command
 
     cfg = load_config()
     if req.top_k > 0:
         cfg.top_k = req.top_k
 
+    qid_holder: list = []
+
+    def confirm(cmd: str) -> bool:
+        # The web chat never auto-executes a proposed command. Instead we
+        # record it as pending so /api/command/confirm can later verify a
+        # confirmation request actually matches something the agent itself
+        # proposed for this query, rather than blindly running whatever
+        # command a POST body claims.
+        query_id = qid_holder[0] if qid_holder else ""
+        pending_token = uuid.uuid4().hex
+        create_pending_command(cfg.db_path, pending_token, cmd, query_id)
+        return False
+
     def stream():
-        for token in run_agent(req.question, cfg, confirm_fn=lambda cmd: False):
+        for token in run_agent(req.question, cfg, confirm_fn=confirm, query_id_holder=qid_holder):
             yield f"data: {json.dumps({'token': token})}\n\n"
         yield "data: [DONE]\n\n"
 
@@ -127,8 +143,15 @@ def api_models():
 @app.post("/api/command/confirm")
 def api_run_command(req: CommandRequest):
     from itkb.agent.tools import run_command
+    from itkb.store.db import consume_pending_command
 
     cfg = load_config()
+    if not consume_pending_command(cfg.db_path, req.token, req.command, req.query_id):
+        raise HTTPException(
+            status_code=403,
+            detail="No matching pending command confirmation (unknown token, "
+                   "already used, expired, or command/query_id mismatch).",
+        )
     try:
         output = run_command(req.command, confirm_fn=lambda cmd: True,
                              db_path=cfg.db_path, query_id=req.query_id)

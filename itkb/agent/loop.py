@@ -91,7 +91,9 @@ def run_agent(
 
             if name == "search_kb":
                 q_emb = embed_query(args["query"], cfg.embed_model)
-                chunks = search_kb(q_emb, cfg.db_path, args.get("top_k", cfg.top_k))
+                chunks = search_kb(args["query"], q_emb, cfg.db_path,
+                                   args.get("top_k", cfg.top_k),
+                                   embed_model=cfg.embed_model)
                 context_chunks.extend(chunks)
                 if collected_chunks is not None:
                     collected_chunks.extend(str(c["id"]) for c in chunks)

@@ -77,6 +77,7 @@ def _ingest_file(path: Path, cfg, force: bool = False):
             file_type=path.suffix.lstrip("."),
             ingested_at=datetime.now(timezone.utc).isoformat(),
             chunk_count=len(raw_chunks), mtime=mtime,
+            embed_model=cfg.embed_model,
         )
         upsert_document(cfg.db_path, doc)
 
@@ -120,6 +121,7 @@ def _ingest_url(url: str, cfg):
             id=did, source_path=url, title=title, file_type="url",
             ingested_at=datetime.now(timezone.utc).isoformat(),
             chunk_count=len(raw_chunks), mtime=time.time(),
+            embed_model=cfg.embed_model,
         )
         upsert_document(cfg.db_path, doc)
         chunks = [
@@ -169,12 +171,20 @@ def query(
 ):
     """Ask a question. Streams the answer with citations."""
     from itkb.agent.loop import run_agent
-    from itkb.store.db import init_db, save_query_context
+    from itkb.store.db import init_db, save_query_context, stale_embed_model_count
 
     cfg = _cfg()
     if k > 0:
         cfg.top_k = k
     init_db(cfg.db_path)
+
+    stale = stale_embed_model_count(cfg.db_path, cfg.embed_model)
+    if stale:
+        console.print(
+            f"[yellow]Warning:[/yellow] {stale} document(s) were embedded with a "
+            f"different model than the current embed_model ({cfg.embed_model}) and "
+            f"are excluded from search results until you run [bold]kb reindex[/bold]."
+        )
 
     def confirm(cmd: str) -> bool:
         if no_run:
@@ -214,10 +224,12 @@ def list_docs():
     table.add_column("Title")
     table.add_column("Type")
     table.add_column("Chunks", justify="right")
+    table.add_column("Embed Model")
     table.add_column("Ingested At")
     for doc in docs:
         table.add_row(doc.id, doc.title or doc.source_path, doc.file_type,
-                      str(doc.chunk_count), doc.ingested_at[:19])
+                      str(doc.chunk_count), doc.embed_model or "[dim]—[/dim]",
+                      doc.ingested_at[:19])
     console.print(table)
 
 

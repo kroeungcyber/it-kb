@@ -16,7 +16,7 @@ def test_search_kb_returns_chunks(db_path, mocker):
     chunk = Chunk(id=None, doc_id=doc.id, content="restart nginx", chunk_index=0)
     insert_chunks(db_path, [chunk], [[0.1] * 768])
 
-    results = search_kb([0.1] * 768, db_path, top_k=1)
+    results = search_kb("restart nginx", [0.1] * 768, db_path, top_k=1)
     assert len(results) == 1
     assert results[0]["content"] == "restart nginx"
     assert "source" in results[0]

@@ -1,0 +1,46 @@
+# tests/test_program.py
+from itkb.program import ingest_path_allowed, ingest_url_allowed
+
+PROGRAM_TEXT = """
+## Path Whitelist
+
+```yaml
+ingest_paths:
+  - /tmp/itkb-notes/
+```
+
+## URL Whitelist
+
+```yaml
+ingest_urls:
+  - https://wiki.
+```
+"""
+
+
+def test_ingest_path_allowed_inside_whitelist(mocker):
+    mocker.patch("itkb.program._read_program", return_value=PROGRAM_TEXT)
+    assert ingest_path_allowed("/tmp/itkb-notes/runbook.md") is True
+
+
+def test_ingest_path_allowed_nested_inside_whitelist(mocker):
+    mocker.patch("itkb.program._read_program", return_value=PROGRAM_TEXT)
+    assert ingest_path_allowed("/tmp/itkb-notes/sub/dir/runbook.md") is True
+
+
+def test_ingest_path_blocked_outside_whitelist(mocker):
+    mocker.patch("itkb.program._read_program", return_value=PROGRAM_TEXT)
+    assert ingest_path_allowed("/etc/shadow") is False
+
+
+def test_ingest_path_traversal_outside_whitelist_is_blocked(mocker):
+    mocker.patch("itkb.program._read_program", return_value=PROGRAM_TEXT)
+    # Raw string starts with the whitelisted prefix, but ".." resolves
+    # outside of it -- must be blocked, not allowed by a naive startswith.
+    assert ingest_path_allowed("/tmp/itkb-notes/../outside.txt") is False
+
+
+def test_ingest_url_allowed_prefix_match(mocker):
+    mocker.patch("itkb.program._read_program", return_value=PROGRAM_TEXT)
+    assert ingest_url_allowed("https://wiki.example.com/page") is True
+    assert ingest_url_allowed("https://evil.example.com/page") is False
