@@ -2,31 +2,63 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>itkb — Documents</title>
-  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="/static/style.css?v=3">
 </head>
 <body>
-<nav>
-  <a href="/">Chat</a>
-  <a href="/docs-ui" class="active">Documents</a>
-  <a href="/history">History</a>
-  <a href="/notes">Notes</a>
-</nav>
-<div class="container">
-  <h2 style="margin: 1rem 0; color: #94a3b8;">Knowledge Base Documents</h2>
-  <div id="add-form">
-    <input id="add-input" type="text" placeholder="File path or https://… URL">
-    <button id="add-btn" style="background:#7c3aed;color:white;border:none;padding:0.6rem 1.25rem;border-radius:6px;cursor:pointer;">Add</button>
+
+<!-- ── Sidebar ────────────────────────────────────────────── -->
+<aside class="sidebar">
+  <div class="sidebar-brand">
+    <span class="brand-dot"></span> itkb
   </div>
-  <table id="docs-table">
-    <thead>
-      <tr>
-        <th>Title / Path</th><th>Type</th><th>Chunks</th><th>Ingested</th><th></th>
-      </tr>
-    </thead>
-    <tbody id="docs-tbody"></tbody>
-  </table>
-</div>
-<script src="/static/app.js?v=2"></script>
+  <nav class="sidebar-nav">
+    <a href="/">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      Chat
+    </a>
+    <a href="/docs-ui" class="active">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      Documents
+    </a>
+    <a href="/history">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      History
+    </a>
+    <a href="/notes">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"/></svg>
+      Notes
+    </a>
+  </nav>
+  <div class="sidebar-footer">
+    IT Knowledge Base<br>
+    Local-first &middot; Ollama
+  </div>
+</aside>
+
+<!-- ── Main ───────────────────────────────────────────────── -->
+<main class="main">
+  <div class="chat-header">
+    <span class="header-icon">📄</span> Documents
+  </div>
+  <div class="page-content">
+    <h2>Knowledge Base Documents</h2>
+    <div id="add-form">
+      <input id="add-input" type="text" placeholder="File path or https://… URL">
+      <button id="add-btn">Add</button>
+    </div>
+    <table id="docs-table">
+      <thead>
+        <tr>
+          <th>Title / Path</th><th>Type</th><th>Chunks</th><th>Ingested</th><th></th>
+        </tr>
+      </thead>
+      <tbody id="docs-tbody"></tbody>
+    </table>
+  </div>
+</main>
+
+<script src="/static/app.js?v=3"></script>
 </body>
 </html>
