@@ -101,6 +101,10 @@ def run_agent(
                     _format_chunk(c) for c in chunks
                 ) or "No results found."
                 messages.append({"role": "tool", "content": tool_result})
+                if not chunks and cfg.web_fallback:
+                    result = web_search(args["query"], api_key)
+                    messages.append({"role": "tool", "content":
+                                     "[Auto web search: KB returned no results for this query]\n" + result})
 
             elif name == "web_search":
                 result = web_search(args["query"], api_key)
