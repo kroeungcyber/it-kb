@@ -128,6 +128,67 @@ def test_agent_web_fallback_fires_once_per_query(mocker, db_path):
     list(run_agent("q", _cfg(db_path), confirm_fn=lambda cmd: False))
     assert mock_web.call_count == 1
 
+def test_agent_no_web_fallback_when_disabled(mocker, db_path):
+    call_count = 0
+
+    def fake_chat(**kwargs):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            return {
+                "message": {
+                    "content": "",
+                    "tool_calls": [{"function": {"name": "search_kb", "arguments": {"query": "q"}}}],
+                }
+            }
+        return {"message": {"content": "final", "tool_calls": []}}
+
+    mocker.patch("itkb.agent.loop.ollama.chat", side_effect=fake_chat)
+    mocker.patch("itkb.agent.loop.embed_query", return_value=[0.1] * 768)
+    mocker.patch("itkb.agent.loop.suggest_followups", return_value=[])
+    mock_web = mocker.patch("itkb.agent.loop.web_search", return_value="web")
+
+    cfg = _cfg(db_path)
+    cfg.web_fallback = False
+    list(run_agent("q", cfg, confirm_fn=lambda cmd: False))
+    assert mock_web.call_count == 0
+
+
+def test_agent_no_web_fallback_when_kb_has_results(mocker, db_path):
+    from itkb.store.db import upsert_document, insert_chunks, doc_id
+    from itkb.store.models import Document, Chunk
+    from datetime import datetime, timezone
+
+    doc = Document(
+        id=doc_id("/kb/nginx.md"), source_path="/kb/nginx.md", title="Nginx",
+        file_type="md", ingested_at=datetime.now(timezone.utc).isoformat(),
+        chunk_count=1, mtime=1.0
+    )
+    upsert_document(db_path, doc)
+    insert_chunks(db_path, [Chunk(None, doc.id, "nginx restart command", 0)], [[0.1] * 768])
+
+    call_count = 0
+
+    def fake_chat(**kwargs):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            return {
+                "message": {
+                    "content": "",
+                    "tool_calls": [{"function": {"name": "search_kb", "arguments": {"query": "restart nginx"}}}],
+                }
+            }
+        return {"message": {"content": "Use systemctl restart nginx", "tool_calls": []}}
+
+    mocker.patch("itkb.agent.loop.ollama.chat", side_effect=fake_chat)
+    mocker.patch("itkb.agent.loop.embed_query", return_value=[0.1] * 768)
+    mocker.patch("itkb.agent.loop.suggest_followups", return_value=[])
+    mock_web = mocker.patch("itkb.agent.loop.web_search", return_value="web")
+
+    list(run_agent("restart nginx", _cfg(db_path), confirm_fn=lambda cmd: False))
+    assert mock_web.call_count == 0
+
 def test_format_chunk_includes_heading_when_present():
     chunk = {"source": "docabc", "content": "restart nginx", "metadata": {"heading": "Docker > Networking"}}
     formatted = _format_chunk(chunk)
