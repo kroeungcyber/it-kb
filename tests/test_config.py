@@ -20,3 +20,13 @@ def test_save_and_load_roundtrip(tmp_path, monkeypatch):
     loaded = load_config()
     assert loaded.model == "mistral:7b"
     assert loaded.top_k == 8
+
+def test_web_fallback_config_roundtrip(tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    import itkb.config as cfg_mod
+    cfg_mod.CONFIG_DIR = tmp_path / ".itkb"
+    cfg_mod.CONFIG_FILE = cfg_mod.CONFIG_DIR / "config.toml"
+
+    assert Config().web_fallback is True          # default on
+    save_config(Config(web_fallback=False))
+    assert load_config().web_fallback is False    # persists

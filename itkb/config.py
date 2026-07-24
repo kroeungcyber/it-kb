@@ -16,6 +16,7 @@ class Config:
     top_k: int = 5
     trusted: bool = False
     tavily_api_key: str = ""
+    web_fallback: bool = True
 
 def load_config() -> Config:
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
