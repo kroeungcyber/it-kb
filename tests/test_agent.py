@@ -105,6 +105,29 @@ def test_agent_auto_web_fallback_on_empty_kb(mocker, db_path):
     tool_msgs = [m.get("content", "") for m in second_msgs if m.get("role") == "tool"]
     assert any("[Auto web search" in c for c in tool_msgs)
 
+def test_agent_web_fallback_fires_once_per_query(mocker, db_path):
+    call_count = 0
+
+    def fake_chat(**kwargs):
+        nonlocal call_count
+        call_count += 1
+        if call_count <= 2:
+            return {
+                "message": {
+                    "content": "",
+                    "tool_calls": [{"function": {"name": "search_kb", "arguments": {"query": "q"}}}],
+                }
+            }
+        return {"message": {"content": "final", "tool_calls": []}}
+
+    mocker.patch("itkb.agent.loop.ollama.chat", side_effect=fake_chat)
+    mocker.patch("itkb.agent.loop.embed_query", return_value=[0.1] * 768)
+    mocker.patch("itkb.agent.loop.suggest_followups", return_value=[])
+    mock_web = mocker.patch("itkb.agent.loop.web_search", return_value="web")
+
+    list(run_agent("q", _cfg(db_path), confirm_fn=lambda cmd: False))
+    assert mock_web.call_count == 1
+
 def test_format_chunk_includes_heading_when_present():
     chunk = {"source": "docabc", "content": "restart nginx", "metadata": {"heading": "Docker > Networking"}}
     formatted = _format_chunk(chunk)

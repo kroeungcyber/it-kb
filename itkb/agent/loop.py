@@ -60,6 +60,7 @@ def run_agent(
         {"role": "user", "content": question},
     ]
     context_chunks: list[dict] = []
+    web_fallback_used = False
 
     api_key = _resolve_api_key(cfg)
 
@@ -101,7 +102,8 @@ def run_agent(
                     _format_chunk(c) for c in chunks
                 ) or "No results found."
                 messages.append({"role": "tool", "content": tool_result})
-                if not chunks and cfg.web_fallback:
+                if not chunks and cfg.web_fallback and not web_fallback_used:
+                    web_fallback_used = True
                     result = web_search(args["query"], api_key)
                     messages.append({"role": "tool", "content":
                                      "[Auto web search: KB returned no results for this query]\n" + result})
