@@ -8,7 +8,7 @@
   <style>
     .notes-list { display: flex; flex-direction: column; gap: 1rem; }
     .note-card {
-      background: var(--bg-bubble-assistant);
+      background: var(--bg-surface);
       border: 1px solid var(--border);
       border-radius: var(--radius-md);
       padding: 1rem;
@@ -25,7 +25,7 @@
       font-size: 0.8rem;
       color: var(--text-muted);
     }
-    .note-linked   { color: var(--accent-soft); }
+    .note-linked   { color: var(--accent); }
     .note-unlinked { color: var(--text-muted); font-style: italic; }
     .note-id       { font-family: var(--font-mono); color: var(--text-muted); }
   </style>
@@ -34,9 +34,11 @@
 
 <!-- ── Sidebar ────────────────────────────────────────────── -->
 <aside class="sidebar">
-  <div class="sidebar-brand">
-    <span class="brand-dot"></span> itkb
-  </div>
+  <div class="sidebar-brand">itkb</div>
+  <a href="/" class="new-chat-btn">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    New chat
+  </a>
   <nav class="sidebar-nav">
     <a href="/">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>

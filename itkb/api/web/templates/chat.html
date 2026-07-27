@@ -10,9 +10,11 @@
 
 <!-- ── Sidebar ────────────────────────────────────────────── -->
 <aside class="sidebar">
-  <div class="sidebar-brand">
-    <span class="brand-dot"></span> itkb
-  </div>
+  <div class="sidebar-brand">itkb</div>
+  <a href="/" class="new-chat-btn">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    New chat
+  </a>
   <nav class="sidebar-nav">
     <a href="/" class="active">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
@@ -40,14 +42,13 @@
 <!-- ── Main Chat ──────────────────────────────────────────── -->
 <main class="main">
   <div class="chat-header">
-    <span class="header-icon">💬</span> Chat
+    Chat
     <div class="header-spacer"></div>
     <span class="model-badge">gemma4</span>
   </div>
 
   <div class="messages" id="chat-messages">
     <div class="empty-state" id="empty-state">
-      <div class="empty-icon">⚡</div>
       <h2>IT Knowledge Base</h2>
       <p>Ask any IT question — troubleshooting, configs, commands, and documentation. Your local KB answers with context from your ingested documents.</p>
       <div class="suggestions">

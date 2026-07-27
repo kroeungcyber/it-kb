@@ -155,47 +155,42 @@ function appendMsg(role, text, streaming) {
   const row = document.createElement("div");
   row.className = "msg-row " + role + (streaming ? " streaming" : "");
 
-  const avatar = document.createElement("div");
-  avatar.className = "msg-avatar";
-  avatar.textContent = role === "user" ? "U" : "K";
-
-  const bubble = document.createElement("div");
-  bubble.className = "msg-bubble";
+  const content = document.createElement("div");
+  content.className = "msg-content";
 
   if (role === "assistant" && text) {
-    bubble.innerHTML = parseMarkdown(text);
+    content.innerHTML = parseMarkdown(text);
   } else {
-    bubble.textContent = text;
+    content.textContent = text;
   }
 
-  row.appendChild(avatar);
-  row.appendChild(bubble);
+  row.appendChild(content);
   chatMessages.appendChild(row);
   chatMessages.scrollTop = chatMessages.scrollHeight;
   return row;
 }
 
 function renderStreaming(row, fullText) {
-  const bubble = row.querySelector(".msg-bubble");
+  const content = row.querySelector(".msg-content");
   // During streaming, show raw markdown — parse happens on [DONE]
   const parsed = parseAssistantResponse(fullText);
-  bubble.innerHTML = parseMarkdown(parsed.body);
+  content.innerHTML = parseMarkdown(parsed.body);
   chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
 function renderAssistantFinal(row, fullText) {
-  const bubble = row.querySelector(".msg-bubble");
+  const content = row.querySelector(".msg-content");
   const parsed = parseAssistantResponse(fullText);
 
   // Render body as markdown
-  bubble.innerHTML = parseMarkdown(parsed.body);
+  content.innerHTML = parseMarkdown(parsed.body);
 
   // Add sources
   if (parsed.sources) {
     const sourcesDiv = document.createElement("div");
     sourcesDiv.className = "sources";
     sourcesDiv.innerHTML = "<strong>Sources:</strong> " + parsed.sources;
-    bubble.appendChild(sourcesDiv);
+    content.appendChild(sourcesDiv);
   }
 
   // Add follow-up chips
@@ -212,15 +207,15 @@ function renderAssistantFinal(row, fullText) {
       });
       fuDiv.appendChild(chip);
     });
-    bubble.appendChild(fuDiv);
+    content.appendChild(fuDiv);
   }
 
   chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
 function showTyping(row) {
-  const bubble = row.querySelector(".msg-bubble");
-  bubble.innerHTML = '<div class="typing-dots"><span></span><span></span><span></span></div>';
+  const content = row.querySelector(".msg-content");
+  content.innerHTML = '<div class="typing-dots"><span></span><span></span><span></span></div>';
 }
 
 // ══════════════════════════════════════════════════════════════════════
