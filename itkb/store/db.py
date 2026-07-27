@@ -264,10 +264,12 @@ def hybrid_search_chunks(db_path: str, query_embedding: list[float], query_text:
     chunks_by_id: dict[int, Chunk] = {}
 
     for rank, (chunk, _distance) in enumerate(vector_results, start=1):
+        assert chunk.id is not None, "chunks read back from the DB always have an id"
         scores[chunk.id] = scores.get(chunk.id, 0.0) + 1.0 / (RRF_K + rank)
         chunks_by_id[chunk.id] = chunk
 
     for rank, chunk in enumerate(fts_results, start=1):
+        assert chunk.id is not None, "chunks read back from the DB always have an id"
         scores[chunk.id] = scores.get(chunk.id, 0.0) + 1.0 / (RRF_K + rank)
         chunks_by_id.setdefault(chunk.id, chunk)
 
