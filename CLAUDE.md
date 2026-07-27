@@ -1,6 +1,7 @@
 ## Health Stack
 
 - lint: flake8 itkb tests
+- typecheck: mypy itkb
 - test: pytest
 
 ## Skill routing

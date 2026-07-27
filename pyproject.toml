@@ -25,10 +25,14 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0", "pytest-mock>=3.0"]
+dev = ["pytest>=8.0", "pytest-mock>=3.0", "mypy>=1.0"]
 
 [project.scripts]
 kb = "itkb.cli:app"
 
 [tool.setuptools.packages.find]
 include = ["itkb*"]
+
+[[tool.mypy.overrides]]
+module = ["pysqlite3.*", "sqlite_vec"]
+ignore_missing_imports = true
