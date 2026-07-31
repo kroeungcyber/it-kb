@@ -266,13 +266,14 @@ def reindex():
 
 
 @app.command()
-def serve(port: int = typer.Option(8000, "--port", help="Port to listen on")):
+def serve(port: int = typer.Option(8000, "--port", help="Port to listen on"),
+          host: str = typer.Option("127.0.0.1", "--host", help="Host/interface to bind")):
     """Start the web UI server."""
     import uvicorn
     from itkb.api.app import app as fastapi_app
 
-    console.print(f"[green]Starting web UI at http://localhost:{port}[/green]")
-    uvicorn.run(fastapi_app, host="127.0.0.1", port=port)
+    console.print(f"[green]Starting web UI at http://{host}:{port}[/green]")
+    uvicorn.run(fastapi_app, host=host, port=port)
 
 
 @app.command()
