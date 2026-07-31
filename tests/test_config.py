@@ -30,3 +30,22 @@ def test_web_fallback_config_roundtrip(tmp_path, monkeypatch):
     assert Config().web_fallback is True          # default on
     save_config(Config(web_fallback=False))
     assert load_config().web_fallback is False    # persists
+
+def test_env_overrides_model_and_embed(tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    import itkb.config as cfg_mod
+    cfg_mod.CONFIG_DIR = tmp_path / ".itkb"
+    cfg_mod.CONFIG_FILE = cfg_mod.CONFIG_DIR / "config.toml"
+
+    save_config(Config(model="toml-model", embed_model="toml-embed"))
+    monkeypatch.setenv("ITKB_MODEL", "env-model")
+    monkeypatch.setenv("ITKB_EMBED_MODEL", "env-embed")
+    loaded = load_config()
+    assert loaded.model == "env-model"
+    assert loaded.embed_model == "env-embed"
+
+    monkeypatch.delenv("ITKB_MODEL")
+    monkeypatch.delenv("ITKB_EMBED_MODEL")
+    loaded = load_config()
+    assert loaded.model == "toml-model"
+    assert loaded.embed_model == "toml-embed"

@@ -1,5 +1,6 @@
 # itkb/config.py
 from __future__ import annotations
+import os
 import tomli as tomllib
 import tomli_w
 from pathlib import Path
@@ -25,7 +26,12 @@ def load_config() -> Config:
     with open(CONFIG_FILE, "rb") as f:
         data = tomllib.load(f)
     valid_keys = {f.name for f in fields(Config)}
-    return Config(**{k: v for k, v in data.items() if k in valid_keys})
+    cfg = Config(**{k: v for k, v in data.items() if k in valid_keys})
+    if os.environ.get("ITKB_MODEL"):
+        cfg.model = os.environ["ITKB_MODEL"]
+    if os.environ.get("ITKB_EMBED_MODEL"):
+        cfg.embed_model = os.environ["ITKB_EMBED_MODEL"]
+    return cfg
 
 def save_config(cfg: Config) -> None:
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
