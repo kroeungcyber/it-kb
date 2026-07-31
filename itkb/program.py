@@ -1,6 +1,7 @@
 # itkb/program.py
 """Read and enforce PROGRAM.md — the central control file."""
 from __future__ import annotations
+import os
 import re
 from pathlib import Path
 
@@ -8,7 +9,8 @@ PROGRAM_PATH = Path(__file__).parent.parent / "PROGRAM.md"
 
 
 def _read_program() -> str:
-    return PROGRAM_PATH.read_text()
+    path = Path(os.environ.get("ITKB_PROGRAM_PATH", PROGRAM_PATH))
+    return path.read_text()
 
 
 def _parse_yaml_block(text: str, heading: str) -> dict:

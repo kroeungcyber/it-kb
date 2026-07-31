@@ -44,3 +44,13 @@ def test_ingest_url_allowed_prefix_match(mocker):
     mocker.patch("itkb.program._read_program", return_value=PROGRAM_TEXT)
     assert ingest_url_allowed("https://wiki.example.com/page") is True
     assert ingest_url_allowed("https://evil.example.com/page") is False
+
+
+def test_program_path_env_override(tmp_path, monkeypatch):
+    custom = tmp_path / "CUSTOM_PROGRAM.md"
+    custom.write_text(
+        "## 5. Command Execution\n\n```yaml\ncommands_enabled: true\n```\n"
+    )
+    monkeypatch.setenv("ITKB_PROGRAM_PATH", str(custom))
+    from itkb.program import commands_enabled
+    assert commands_enabled() is True
