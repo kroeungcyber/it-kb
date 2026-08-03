@@ -26,6 +26,7 @@ ingest_paths:
   - /Users/bila/dotfiles/
   - /etc/
   - /tmp/
+  - /samples/
 ```
 
 ## 3. URL Whitelist — Ingest
