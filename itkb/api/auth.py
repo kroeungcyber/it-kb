@@ -10,7 +10,10 @@ from fastapi import Header, HTTPException, Request
 
 def make_session_token(api_key: str, secret: str, ttl_days: int = 30) -> str:
     expiry = (datetime.now(timezone.utc) + timedelta(days=ttl_days)).isoformat()
-    payload = f"{api_key}:{expiry}"
+    # Sign the *digest* of the key, not the key itself, so a stolen session
+    # cookie never leaks the permanent API credential — it only yields a
+    # time-limited session.
+    payload = f"{_key_digest(api_key)}:{expiry}"
     return f"{payload}.{_sign(payload, secret)}"
 
 
@@ -22,16 +25,20 @@ def verify_session_token(token: str, api_key: str, secret: str) -> bool:
     if not secrets.compare_digest(sig, _sign(payload, secret)):
         return False
     try:
-        stored_key, expiry = payload.split(":", 1)
+        stored_digest, expiry = payload.split(":", 1)
     except ValueError:
         return False
-    if stored_key != api_key:
+    if not secrets.compare_digest(stored_digest, _key_digest(api_key)):
         return False
     try:
         exp = datetime.fromisoformat(expiry)
     except ValueError:
         return False
     return exp > datetime.now(timezone.utc)
+
+
+def _key_digest(api_key: str) -> str:
+    return hashlib.sha256(api_key.encode()).hexdigest()
 
 
 def _sign(payload: str, secret: str) -> str:

@@ -54,8 +54,9 @@ def test_verify_rejects_tampered_token():
 
 
 def test_verify_rejects_expired_token():
+    from itkb.api.auth import _key_digest
     expired = datetime.now(timezone.utc) - timedelta(days=1)
-    payload = f"k123:{expired.isoformat()}"
+    payload = f"{_key_digest('k123')}:{expired.isoformat()}"
     sig = hmac.new(b"s456", payload.encode(), hashlib.sha256).hexdigest()
     forged = f"{payload}.{sig}"
     assert verify_session_token(forged, "k123", "s456") is False
@@ -107,8 +108,20 @@ def test_login_sets_cookie(authed_config):
         assert r.status_code == 200
         cookie = client.cookies.get("itkb_session")
         assert cookie
+        set_cookie = r.headers.get("set-cookie", "")
+        assert "HttpOnly" in set_cookie
+        assert "samesite=lax" in set_cookie.lower()
+        assert "Path=/" in set_cookie
+        assert "Max-Age=2592000" in set_cookie
         r2 = client.get("/api/documents")
         assert r2.status_code == 200
+
+
+def test_wrong_key_header_rejected_even_with_valid_cookie(authed_config):
+    with TestClient(app) as client:
+        client.post("/api/login", json={"key": "testkey123"})
+        r = client.get("/api/documents", headers={"X-API-Key": "wrong"})
+        assert r.status_code == 401
 
 
 def test_login_wrong_key_rejected(authed_config):
@@ -128,8 +141,9 @@ def test_logout_clears_cookie(authed_config):
 
 
 def test_expired_cookie_rejected(authed_config):
+    from itkb.api.auth import _key_digest
     expired = datetime.now(timezone.utc) - timedelta(days=1)
-    payload = f"testkey123:{expired.isoformat()}"
+    payload = f"{_key_digest('testkey123')}:{expired.isoformat()}"
     token = f"{payload}.{_sign(payload, 'testsecret456')}"
     with TestClient(app) as client:
         client.cookies.set("itkb_session", token)
