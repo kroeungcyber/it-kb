@@ -5,6 +5,8 @@ import hmac
 import secrets
 from datetime import datetime, timedelta, timezone
 
+from fastapi import Header, HTTPException, Request
+
 
 def make_session_token(api_key: str, secret: str, ttl_days: int = 30) -> str:
     expiry = (datetime.now(timezone.utc) + timedelta(days=ttl_days)).isoformat()
@@ -34,3 +36,26 @@ def verify_session_token(token: str, api_key: str, secret: str) -> bool:
 
 def _sign(payload: str, secret: str) -> str:
     return hmac.new(secret.encode(), payload.encode(), hashlib.sha256).hexdigest()
+
+
+def require_auth(request: Request, x_api_key: str = Header(default="")) -> None:
+    from itkb.config import load_config
+
+    cfg = load_config()
+    expected = cfg.api_key or ""
+    if x_api_key:
+        if expected and secrets.compare_digest(x_api_key, expected):
+            return
+        _reject()
+    token = request.cookies.get("itkb_session")
+    if token and expected and verify_session_token(token, expected, cfg.session_secret):
+        return
+    _reject()
+
+
+def _reject():
+    raise HTTPException(
+        status_code=401,
+        detail="Invalid API key or session",
+        headers={"WWW-Authenticate": "Bearer"},
+    )

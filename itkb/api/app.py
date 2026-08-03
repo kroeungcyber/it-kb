@@ -5,11 +5,12 @@ import os
 import secrets
 from pathlib import Path
 from typing import Optional
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.responses import StreamingResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+from itkb.api.auth import require_auth
 from itkb.config import load_config, save_config
 from itkb.store.db import init_db, list_documents, delete_document
 
@@ -77,7 +78,7 @@ def notes_page():
     return (_TEMPLATES / "notes.html").read_text()
 
 
-@app.post("/api/query")
+@app.post("/api/query", dependencies=[Depends(require_auth)])
 def api_query(req: QueryRequest):
     import uuid
     from itkb.agent.loop import run_agent
@@ -108,7 +109,7 @@ def api_query(req: QueryRequest):
     return StreamingResponse(stream(), media_type="text/event-stream")
 
 
-@app.post("/api/ingest")
+@app.post("/api/ingest", dependencies=[Depends(require_auth)])
 def api_ingest(req: IngestRequest):
     from itkb.cli import _ingest_file, _ingest_url
 
@@ -125,7 +126,7 @@ def api_ingest(req: IngestRequest):
     raise HTTPException(status_code=400, detail="Provide path or url")
 
 
-@app.get("/api/documents")
+@app.get("/api/documents", dependencies=[Depends(require_auth)])
 def api_list_documents():
     cfg = load_config()
     docs = list_documents(cfg.db_path)
@@ -139,14 +140,14 @@ def api_list_documents():
     ]
 
 
-@app.delete("/api/documents/{doc_id}")
+@app.delete("/api/documents/{doc_id}", dependencies=[Depends(require_auth)])
 def api_delete_document(doc_id: str):
     cfg = load_config()
     delete_document(cfg.db_path, doc_id)
     return {"status": "ok"}
 
 
-@app.get("/api/models")
+@app.get("/api/models", dependencies=[Depends(require_auth)])
 def api_models():
     import ollama
     try:
@@ -156,7 +157,7 @@ def api_models():
         return {"models": [], "error": str(e)}
 
 
-@app.post("/api/command/confirm")
+@app.post("/api/command/confirm", dependencies=[Depends(require_auth)])
 def api_run_command(req: CommandRequest):
     from itkb.agent.tools import run_command
     from itkb.store.db import consume_pending_command
@@ -176,7 +177,7 @@ def api_run_command(req: CommandRequest):
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@app.get("/api/notes")
+@app.get("/api/notes", dependencies=[Depends(require_auth)])
 def api_list_notes():
     from itkb.store.db import list_notes
 
