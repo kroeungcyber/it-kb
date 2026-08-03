@@ -1,6 +1,8 @@
 # itkb/api/app.py
 from __future__ import annotations
 import json
+import os
+import secrets
 from pathlib import Path
 from typing import Optional
 from fastapi import FastAPI, HTTPException
@@ -8,7 +10,7 @@ from fastapi.responses import StreamingResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from itkb.config import load_config
+from itkb.config import load_config, save_config
 from itkb.store.db import init_db, list_documents, delete_document
 
 app = FastAPI(title="itkb Web UI")
@@ -38,6 +40,17 @@ class CommandRequest(BaseModel):
 @app.on_event("startup")
 def startup():
     cfg = load_config()
+    changed = False
+    if not cfg.api_key:
+        cfg.api_key = secrets.token_urlsafe(32)
+        changed = True
+    if not cfg.session_secret:
+        cfg.session_secret = secrets.token_urlsafe(32)
+        changed = True
+    if changed:
+        save_config(cfg)
+        if not os.environ.get("ITKB_SILENT"):
+            print(f"\n=== itkb API key ===\n{cfg.api_key}\n=====================\n")
     init_db(cfg.db_path)
 
 
