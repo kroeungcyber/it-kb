@@ -33,6 +33,9 @@ kb = "itkb.cli:app"
 [tool.setuptools.packages.find]
 include = ["itkb*"]
 
+[tool.setuptools.package-data]
+"itkb.api.web" = ["static/*", "templates/*"]
+
 [[tool.mypy.overrides]]
 module = ["pysqlite3.*", "sqlite_vec"]
 ignore_missing_imports = true

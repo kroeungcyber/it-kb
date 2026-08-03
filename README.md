@@ -32,19 +32,21 @@ kb serve
 Prereq: Docker Desktop (or Docker Engine + compose plugin).
 
 ```bash
-# Default: API container + your host's Ollama (keeps GPU + your models)
-docker compose up
+# API container + your host's Ollama (keeps GPU + your models)
+docker compose --profile host-ollama up
 
 # Self-contained demo: bundled Ollama + llama3.2:3b + sample corpus (~2.3GB first pull)
 docker compose --profile bundled --profile demo-data up
 ```
 
-Then open http://localhost:8000.
+Then open http://localhost:8000. The `host-ollama` and `bundled` profiles are
+mutually exclusive (both bind host port 8000) — run only one at a time.
 
 Config precedence: env vars (`ITKB_MODEL`, `ITKB_EMBED_MODEL`,
-`ITKB_PROGRAM_PATH`, `OLLAMA_HOST`) > `config.toml` (synced from PROGRAM.md).
-Edit `PROGRAM.md` and restart the api container to change behavior — it is
-mounted read-only into the container.
+`ITKB_PROGRAM_PATH`, `OLLAMA_HOST`) > `config.toml` (created with defaults on
+first boot). The bundled profile sets the small models via env vars; for the
+host-Ollama profile, set `ITKB_MODEL`/`ITKB_EMBED_MODEL` or edit the config
+volume. `PROGRAM.md` is mounted read-only into the container for governance.
 
 Data persists in the `itkb-data` volume. Full reset:
 

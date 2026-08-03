@@ -13,9 +13,11 @@ x-api-common: &api-common
     retries: 12
 
 services:
-  # Default: API only, talks to the host's Ollama (GPU on this Mac).
+  # Host Ollama: API only, talks to the host's Ollama (GPU on this Mac).
+  # Gated behind a profile so it never co-publishes 8000 with api-demo.
   api:
     <<: *api-common
+    profiles: ["host-ollama"]
     environment:
       OLLAMA_HOST: http://host.docker.internal:11434
     extra_hosts:
@@ -70,7 +72,7 @@ services:
     depends_on:
       ollama-init:
         condition: service_completed_successfully
-    command: ["kb", "ingest", "/samples"]
+    command: ["kb", "add", "/samples"]
 
 volumes:
   itkb-data:
