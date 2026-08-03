@@ -18,6 +18,8 @@ class Config:
     trusted: bool = False
     tavily_api_key: str = ""
     web_fallback: bool = True
+    api_key: str = ""
+    session_secret: str = ""
 
 def load_config() -> Config:
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)

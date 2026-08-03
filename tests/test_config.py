@@ -49,3 +49,16 @@ def test_env_overrides_model_and_embed(tmp_path, monkeypatch):
     loaded = load_config()
     assert loaded.model == "toml-model"
     assert loaded.embed_model == "toml-embed"
+
+def test_api_key_and_session_secret_roundtrip(tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    import itkb.config as cfg_mod
+    cfg_mod.CONFIG_DIR = tmp_path / ".itkb"
+    cfg_mod.CONFIG_FILE = cfg_mod.CONFIG_DIR / "config.toml"
+
+    assert Config().api_key == ""
+    assert Config().session_secret == ""
+    save_config(Config(api_key="k123", session_secret="s456"))
+    loaded = load_config()
+    assert loaded.api_key == "k123"
+    assert loaded.session_secret == "s456"
