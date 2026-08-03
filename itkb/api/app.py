@@ -39,7 +39,10 @@ class CommandRequest(BaseModel):
 
 @app.on_event("startup")
 def startup():
-    cfg = load_config()
+    # apply_env=False: save_config below must persist only the on-disk
+    # config plus the new keys, never a transient ITKB_MODEL/ITKB_EMBED_MODEL
+    # env override from load_config.
+    cfg = load_config(apply_env=False)
     changed = False
     if not cfg.api_key:
         cfg.api_key = secrets.token_urlsafe(32)

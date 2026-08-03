@@ -62,3 +62,14 @@ def test_api_key_and_session_secret_roundtrip(tmp_path, monkeypatch):
     loaded = load_config()
     assert loaded.api_key == "k123"
     assert loaded.session_secret == "s456"
+
+def test_load_config_apply_env_false_ignores_env(tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    import itkb.config as cfg_mod
+    cfg_mod.CONFIG_DIR = tmp_path / ".itkb"
+    cfg_mod.CONFIG_FILE = cfg_mod.CONFIG_DIR / "config.toml"
+
+    save_config(Config(model="toml-model"))
+    monkeypatch.setenv("ITKB_MODEL", "env-model")
+    assert load_config().model == "env-model"
+    assert load_config(apply_env=False).model == "toml-model"

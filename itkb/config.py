@@ -21,7 +21,7 @@ class Config:
     api_key: str = ""
     session_secret: str = ""
 
-def load_config() -> Config:
+def load_config(apply_env: bool = True) -> Config:
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
     if not CONFIG_FILE.exists():
         save_config(Config())
@@ -29,10 +29,11 @@ def load_config() -> Config:
         data = tomllib.load(f)
     valid_keys = {f.name for f in fields(Config)}
     cfg = Config(**{k: v for k, v in data.items() if k in valid_keys})
-    if os.environ.get("ITKB_MODEL"):
-        cfg.model = os.environ["ITKB_MODEL"]
-    if os.environ.get("ITKB_EMBED_MODEL"):
-        cfg.embed_model = os.environ["ITKB_EMBED_MODEL"]
+    if apply_env:
+        if os.environ.get("ITKB_MODEL"):
+            cfg.model = os.environ["ITKB_MODEL"]
+        if os.environ.get("ITKB_EMBED_MODEL"):
+            cfg.embed_model = os.environ["ITKB_EMBED_MODEL"]
     return cfg
 
 def save_config(cfg: Config) -> None:
