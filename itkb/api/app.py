@@ -5,12 +5,12 @@ import os
 import secrets
 from pathlib import Path
 from typing import Optional
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Response
 from fastapi.responses import StreamingResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from itkb.api.auth import require_auth
+from itkb.api.auth import make_session_token, require_auth
 from itkb.config import load_config, save_config
 from itkb.store.db import init_db, list_documents, delete_document
 
@@ -36,6 +36,10 @@ class CommandRequest(BaseModel):
     command: str
     query_id: str
     token: str
+
+
+class LoginRequest(BaseModel):
+    key: str
 
 
 @app.on_event("startup")
@@ -183,3 +187,25 @@ def api_list_notes():
 
     cfg = load_config()
     return list_notes(cfg.db_path)
+
+
+@app.post("/api/login")
+def api_login(req: LoginRequest, response: Response):
+    import secrets as _secrets
+    from itkb.config import load_config
+
+    cfg = load_config()
+    if not (cfg.api_key and _secrets.compare_digest(req.key, cfg.api_key)):
+        raise HTTPException(status_code=401, detail="Invalid API key")
+    token = make_session_token(cfg.api_key, cfg.session_secret)
+    response.set_cookie(
+        "itkb_session", token, httponly=True, samesite="lax",
+        max_age=2592000, path="/",
+    )
+    return {"status": "ok"}
+
+
+@app.post("/api/logout")
+def api_logout(response: Response):
+    response.delete_cookie("itkb_session", path="/")
+    return {"status": "ok"}

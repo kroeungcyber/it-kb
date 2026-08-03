@@ -9,7 +9,7 @@ import itkb.config as cfg_mod
 from fastapi.testclient import TestClient
 
 from itkb.api.app import app
-from itkb.api.auth import make_session_token, verify_session_token
+from itkb.api.auth import _sign, make_session_token, verify_session_token
 
 
 def _temp_config(tmp_path, monkeypatch):
@@ -98,4 +98,40 @@ def test_valid_api_key_allows_request(authed_config):
 def test_wrong_api_key_rejected(authed_config):
     with TestClient(app) as client:
         r = client.get("/api/documents", headers={"X-API-Key": "wrong"})
+        assert r.status_code == 401
+
+
+def test_login_sets_cookie(authed_config):
+    with TestClient(app) as client:
+        r = client.post("/api/login", json={"key": "testkey123"})
+        assert r.status_code == 200
+        cookie = client.cookies.get("itkb_session")
+        assert cookie
+        r2 = client.get("/api/documents")
+        assert r2.status_code == 200
+
+
+def test_login_wrong_key_rejected(authed_config):
+    with TestClient(app) as client:
+        r = client.post("/api/login", json={"key": "wrong"})
+        assert r.status_code == 401
+        assert "itkb_session" not in client.cookies
+
+
+def test_logout_clears_cookie(authed_config):
+    with TestClient(app) as client:
+        client.post("/api/login", json={"key": "testkey123"})
+        r = client.post("/api/logout")
+        assert r.status_code == 200
+        r2 = client.get("/api/documents")
+        assert r2.status_code == 401
+
+
+def test_expired_cookie_rejected(authed_config):
+    expired = datetime.now(timezone.utc) - timedelta(days=1)
+    payload = f"testkey123:{expired.isoformat()}"
+    token = f"{payload}.{_sign(payload, 'testsecret456')}"
+    with TestClient(app) as client:
+        client.cookies.set("itkb_session", token)
+        r = client.get("/api/documents")
         assert r.status_code == 401
