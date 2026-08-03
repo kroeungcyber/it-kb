@@ -1,0 +1,10 @@
+.git
+.claude
+.gstack
+__pycache__
+*.pyc
+.pytest_cache
+.mypy_cache
+docs/
+tests/
+*.sqlite
