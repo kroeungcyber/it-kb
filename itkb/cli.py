@@ -65,6 +65,10 @@ def _ingest_file(path: Path, cfg, force: bool = False):
             return
 
         text, title = parse_file(path)
+        if cfg.redact_pii:
+            from itkb.ingestion.redact import redact_pii
+            text = redact_pii(text)
+            title = redact_pii(title)
         raw_chunks = chunk_text(text, str(path))
         embeddings = embed_texts([c.content for c in raw_chunks], cfg.embed_model)
 
@@ -112,6 +116,10 @@ def _ingest_url(url: str, cfg):
 
     try:
         text, title = parse_url(url)
+        if cfg.redact_pii:
+            from itkb.ingestion.redact import redact_pii
+            text = redact_pii(text)
+            title = redact_pii(title)
         raw_chunks = chunk_text(text, url)
         embeddings = embed_texts([c.content for c in raw_chunks], cfg.embed_model)
 
