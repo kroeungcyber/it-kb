@@ -108,15 +108,17 @@ def api_query(req: QueryRequest):
 
     def stream():
         collected_chunks: list = []
-        for token in run_agent(req.question, cfg, confirm_fn=confirm,
-                               collected_chunks=collected_chunks,
-                               query_id_holder=qid_holder):
-            yield f"data: {json.dumps({'token': token})}\n\n"
-        log_event(cfg.db_path, "query",
-                  query_id=qid_holder[0] if qid_holder else "",
-                  question=req.question,
-                  chunk_ids=collected_chunks,
-                  source_count=len(collected_chunks))
+        try:
+            for token in run_agent(req.question, cfg, confirm_fn=confirm,
+                                   collected_chunks=collected_chunks,
+                                   query_id_holder=qid_holder):
+                yield f"data: {json.dumps({'token': token})}\n\n"
+        finally:
+            log_event(cfg.db_path, "query",
+                      query_id=qid_holder[0] if qid_holder else "",
+                      question=req.question,
+                      chunk_ids=collected_chunks,
+                      source_count=len(collected_chunks))
         yield "data: [DONE]\n\n"
 
     return StreamingResponse(stream(), media_type="text/event-stream")

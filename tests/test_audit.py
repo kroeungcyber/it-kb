@@ -175,3 +175,29 @@ def test_command_logs_command_event(tmp_path, monkeypatch, mocker):
     assert ev[0]["command"] == "true"
     assert ev[0]["query_id"] == "qid9"
     assert ev[0]["exit_code"] == 0
+
+
+def test_cli_ingest_logs_ingest_event(tmp_path, monkeypatch):
+    monkeypatch.setenv("ITKB_SILENT", "1")
+    _tmp_cfg(tmp_path, monkeypatch, audit_enabled=True)
+
+    import pathlib
+    import uuid
+    src = pathlib.Path("/tmp") / f"itkb-audit-cli-{uuid.uuid4().hex}.md"
+    src.write_text("# Test\n\ncontent\n")
+
+    from itkb.cli import _ingest_file
+    import itkb.config as cfg_mod
+    cfg = cfg_mod.load_config()
+
+    try:
+        _ingest_file(src, cfg)
+    finally:
+        src.unlink(missing_ok=True)
+
+    if (tmp_path / "audit.jsonl").exists():
+        lines = (tmp_path / "audit.jsonl").read_text().strip().split("\n")
+        ev = [json.loads(line) for line in lines if json.loads(line)["event"] == "ingest"]
+        assert len(ev) >= 1, "expected at least one ingest event"
+        assert ev[0]["source"] == str(src)
+        assert ev[0]["kind"] == "file"

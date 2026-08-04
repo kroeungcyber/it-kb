@@ -89,6 +89,8 @@ def _ingest_file(path: Path, cfg, force: bool = False):
         ]
         insert_chunks(cfg.db_path, chunks, embeddings)
         console.print(f"[green]Ingested:[/green] {path} ({len(chunks)} chunks)")
+        from itkb.audit import log_event
+        log_event(cfg.db_path, "ingest", source=str(path), kind="file")
 
     except Exception as e:
         console.print(f"[red]Error ingesting {path}:[/red] {e}")
@@ -132,6 +134,8 @@ def _ingest_url(url: str, cfg):
         ]
         insert_chunks(cfg.db_path, chunks, embeddings)
         console.print(f"[green]Ingested URL:[/green] {title} ({len(chunks)} chunks)")
+        from itkb.audit import log_event
+        log_event(cfg.db_path, "ingest", source=url, kind="url")
 
     except Exception as e:
         console.print(f"[red]Error ingesting {url}:[/red] {e}")
