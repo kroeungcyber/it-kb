@@ -16,3 +16,16 @@ def test_serve_host_flag(mocker):
     result = runner.invoke(app, ["serve", "--host", "0.0.0.0"])
     assert result.exit_code == 0
     assert mock_run.call_args.kwargs["host"] == "0.0.0.0"
+
+
+def test_config_set_bool_coercion(tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    import itkb.config as cfg_mod
+    cfg_mod.CONFIG_DIR = tmp_path / ".itkb"
+    cfg_mod.CONFIG_FILE = cfg_mod.CONFIG_DIR / "config.toml"
+
+    runner.invoke(app, ["config", "set", "redact_pii", "false"])
+    assert cfg_mod.load_config().redact_pii is False
+
+    runner.invoke(app, ["config", "set", "audit_enabled", "true"])
+    assert cfg_mod.load_config().audit_enabled is True

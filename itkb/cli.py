@@ -338,7 +338,10 @@ def config(
             raise typer.Exit(1)
         # Coerce to the original type
         original_type = type(d[key])
-        d[key] = original_type(value)
+        if original_type is bool:
+            d[key] = str(value).strip().lower() in ("1", "true", "yes", "on")
+        else:
+            d[key] = original_type(value)
         from itkb.config import Config
         save_config(Config(**d))
         console.print(f"[green]Set {key} = {value}[/green]")

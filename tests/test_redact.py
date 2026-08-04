@@ -111,3 +111,33 @@ def test_ingest_hook_respects_toggle_off(tmp_path, monkeypatch, fake_embedding_f
     conn.close()
     text = " ".join(r[0] for r in rows)
     assert "foo@bar.com" in text
+
+
+def test_keeps_epoch_timestamps():
+    text = "run date +%s → 1700000000 at 1700000000000 ms"
+    assert "1700000000" in redact_pii(text)
+    assert "1700000000000" in redact_pii(text)
+
+
+def test_keeps_9_digit_ids():
+    text = "user id 123456789, ticket #987654321, checksum 202406789"
+    assert redact_pii(text) == text
+
+
+def test_keeps_long_numeric_values_unless_luhn():
+    # ms epoch and byte count are not Luhn-valid → preserved.
+    assert "1700000000000" in redact_pii("epoch 1700000000000")
+    assert "1099511627776" in redact_pii("bytes 1099511627776")
+    # A Luhn-valid 16-digit number IS redacted.
+    assert "[CREDIT_CARD REDACTED]" in redact_pii("card 4532015112830366")
+
+
+def test_phone_requires_separators():
+    # A bare 10-digit run is an epoch/extension, not a phone → preserved.
+    assert "5551234567" in redact_pii("ext 5551234567")
+    # With separators it is a phone → redacted.
+    assert "[PHONE REDACTED]" in redact_pii("call 555-123-4567 now")
+
+
+def test_phone_with_country_code():
+    assert "[PHONE REDACTED]" in redact_pii("reach +1 (555) 123-4567")
