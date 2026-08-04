@@ -20,6 +20,7 @@ class Config:
     web_fallback: bool = True
     api_key: str = ""
     session_secret: str = ""
+    audit_enabled: bool = True
 
 def load_config(apply_env: bool = True) -> Config:
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)

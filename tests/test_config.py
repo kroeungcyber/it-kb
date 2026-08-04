@@ -73,3 +73,13 @@ def test_load_config_apply_env_false_ignores_env(tmp_path, monkeypatch):
     monkeypatch.setenv("ITKB_MODEL", "env-model")
     assert load_config().model == "env-model"
     assert load_config(apply_env=False).model == "toml-model"
+
+def test_audit_enabled_defaults_true(tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    import itkb.config as cfg_mod
+    cfg_mod.CONFIG_DIR = tmp_path / ".itkb"
+    cfg_mod.CONFIG_FILE = cfg_mod.CONFIG_DIR / "config.toml"
+
+    assert Config().audit_enabled is True
+    save_config(Config(audit_enabled=False))
+    assert load_config().audit_enabled is False
