@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import secrets
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Optional
 from fastapi import Depends, FastAPI, HTTPException, Response
@@ -15,7 +16,30 @@ from itkb.audit import log_event
 from itkb.config import load_config, save_config
 from itkb.store.db import init_db, list_documents, delete_document
 
-app = FastAPI(title="itkb Web UI")
+
+@asynccontextmanager
+async def lifespan(app):
+    # apply_env=False: save_config below must persist only the on-disk
+    # config plus the new keys, never a transient ITKB_MODEL/ITKB_EMBED_MODEL
+    # env override from load_config.
+    cfg = load_config(apply_env=False)
+    changed = False
+    if not cfg.api_key:
+        cfg.api_key = secrets.token_urlsafe(32)
+        changed = True
+    if not cfg.session_secret:
+        cfg.session_secret = secrets.token_urlsafe(32)
+        changed = True
+    if changed:
+        save_config(cfg)
+        if not os.environ.get("ITKB_SILENT"):
+            print(f"\n=== itkb API key ===\n{cfg.api_key}\n=====================\n")
+    init_db(cfg.db_path)
+    yield
+
+
+# docs_url/openapi_url disabled: the API schema and route map are not public.
+app = FastAPI(title="itkb Web UI", docs_url=None, openapi_url=None, lifespan=lifespan)
 
 _STATIC = Path(__file__).parent / "web" / "static"
 _TEMPLATES = Path(__file__).parent / "web" / "templates"
@@ -43,24 +67,9 @@ class LoginRequest(BaseModel):
     key: str
 
 
-@app.on_event("startup")
-def startup():
-    # apply_env=False: save_config below must persist only the on-disk
-    # config plus the new keys, never a transient ITKB_MODEL/ITKB_EMBED_MODEL
-    # env override from load_config.
-    cfg = load_config(apply_env=False)
-    changed = False
-    if not cfg.api_key:
-        cfg.api_key = secrets.token_urlsafe(32)
-        changed = True
-    if not cfg.session_secret:
-        cfg.session_secret = secrets.token_urlsafe(32)
-        changed = True
-    if changed:
-        save_config(cfg)
-        if not os.environ.get("ITKB_SILENT"):
-            print(f"\n=== itkb API key ===\n{cfg.api_key}\n=====================\n")
-    init_db(cfg.db_path)
+@app.get("/health")
+def health():
+    return {"status": "ok"}
 
 
 @app.get("/", response_class=HTMLResponse)

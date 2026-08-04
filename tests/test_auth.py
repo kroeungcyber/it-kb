@@ -149,3 +149,21 @@ def test_expired_cookie_rejected(authed_config):
         client.cookies.set("itkb_session", token)
         r = client.get("/api/documents")
         assert r.status_code == 401
+
+
+def test_health_endpoint_open_and_unauthenticated(tmp_path, monkeypatch):
+    monkeypatch.setenv("ITKB_SILENT", "1")
+    _temp_config(tmp_path, monkeypatch)
+    with TestClient(app) as client:
+        r = client.get("/health")
+        assert r.status_code == 200
+        assert r.json() == {"status": "ok"}
+
+
+def test_docs_and_openapi_disabled(tmp_path, monkeypatch):
+    monkeypatch.setenv("ITKB_SILENT", "1")
+    _temp_config(tmp_path, monkeypatch)
+    with TestClient(app) as client:
+        assert client.get("/docs").status_code == 404
+        assert client.get("/redoc").status_code == 404
+        assert client.get("/openapi.json").status_code == 404
