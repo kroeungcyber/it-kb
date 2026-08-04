@@ -131,29 +131,121 @@ http://localhost:8000/docs-ui   Documents — add, list, delete knowledge
 http://localhost:8000/history   History — command execution log
 ```
 
-## How It Works
+## Architecture
 
+```mermaid
+flowchart LR
+    subgraph Client
+        UI["Web UI<br/>vanilla JS, no build step"] -->|"HTTP/SSE"| API
+        CLI["kb CLI"] -->|"HTTP"| API
+    end
+
+    subgraph API["FastAPI (uvicorn)"]
+        API["/api/query, /api/ingest, ..."] --> AUTH["API-key + session auth"]
+        AUTH --> AGENT["ReAct agent loop<br/>(Ollama chat, tool calls)"]
+        AGENT --> KB_SEARCH["search_kb tool"]
+        AGENT --> WEB["web_search tool<br/>(Tavily, auto-fallback)"]
+        AGENT --> RUN["run_command tool<br/>(user-confirmed)"]
+        API --> AUDIT["JSON audit log<br/>(audit.jsonl)"]
+    end
+
+    subgraph Storage
+        KB_SEARCH --> SQLITE["SQLite<br/>vec0 vectors + FTS5 BM25<br/>RRF hybrid merge"]
+        RUN --> HIST[("command_history")]
+        INGEST["Ingest pipeline"] --> PII["PII redaction"]
+        PII --> CHUNK["Chunker (heading-aware)"]
+        CHUNK --> SQLITE
+    end
+
+    UI -->|"POST /api/ingest"| INGEST
 ```
-Your question  →  embeddinggemma  →  vector search (SQLite vec0)
-                                       ↓
-                                  top-5 chunks found
-                                       ↓
-                                  gemma4 ReAct agent
-                                  (can search again, propose commands)
-                                       ↓
-                                  Answer + citations + follow-ups
-```
+
+## Design decisions & trade-offs
+
+**Why SQLite (vec0 + FTS5) over Chroma/Qdrant/pgvector?** itkb is a
+single-user, local-first tool. SQLite gives the entire knowledge base — vector
+index, BM25 full-text index, and relational tables — in one portable file with
+zero extra services to run or back up. Chroma is fine for demos but adds a
+process; Qdrant/Weaviate solve distributed scale itkb will never need;
+pgvector would force a Postgres install. The honest trade-off: SQLite won't
+scale past a few hundred thousand chunks, which is far beyond a personal KB.
+
+**Why hybrid BM25 + vector retrieval?** Pure vector search blurs exact terms
+that IT runbooks are full of — error codes, package names, flags. Pure lexical
+(FTS5/BM25) misses paraphrases. itkb runs both and merges by Reciprocal Rank
+Fusion (RRF), combining rank positions rather than raw scores, which sidesteps
+the fact that vector distance and BM25 scores live on incompatible scales.
+The cost: two searches per query. RRF scores are rank-based, so there is no
+meaningful "relevance threshold" — that's why the Tavily web fallback triggers
+on *zero* results, not on a score cutoff.
+
+**Why Ollama for everything?** Models run locally, so documents never leave
+the machine, answers work offline, and there are no per-token API costs. The
+embedding model also runs through Ollama rather than sentence-transformers —
+that keeps the Python dependency tree small (no torch) and the Docker image
+~300MB instead of multiple GB.
+
+**Why a custom chunker instead of LangChain?** The chunker tracks markdown
+heading breadcrumbs (so a chunk about `Docker > Networking` carries that full
+context) and skips heading detection inside fenced code blocks. Chunk size is
+512 tokens with 64 overlap — big enough to hold a coherent procedure, small
+enough to keep retrieval precise and embedding cheap. LangChain's
+RecursiveCharacterTextSplitter is a fine default but doesn't give heading
+context, and the custom path is ~100 lines with no framework lock-in. Same
+reasoning for the hand-rolled agent loop over LangChain's AgentExecutor.
+
+**Why FastAPI?** Async SSE streaming for the chat responses, pydantic request
+models, dependency-injection auth, and first-class OpenAPI docs — all without
+a heavyweight framework. Flask would need extensions for most of this; Django
+is overkill for a personal tool.
+
+**Why plain HTML + vanilla JS?** No build step, no node_modules, no CDN. The
+UI is four static templates served straight from disk — consistent with the
+local-first, offline goal. The trade-off is real: hand-rolled DOM updates and
+no component reuse, which is fine at this surface area.
+
+**Security posture (denied by default).** The web API requires an API key
+(`X-API-Key` header) or a session cookie for every `/api/*` call; the key is
+auto-generated on first boot. Sessions are stateless HMAC-signed cookies that
+expire in 30 days and never embed the raw key. Ingestion scrubs true PII
+(emails, phones, SSNs, credit cards — Luhn-validated) with type-specific
+markers, deliberately *not* touching IPs/hostnames/tokens, which are
+legitimate runbook content. Every query, login, ingest, delete, and command
+appends a structured line to `audit.jsonl`. The blast radius is capped at
+"whoever is on this machine" — there is no TLS or multi-user RBAC, which is a
+conscious scope limit for a single-user localhost tool.
+
+**Why PROGRAM.md as the control plane?** Instead of scattering policy across
+flags, one markdown file at the repo root is the single source of truth:
+which models, which paths/URLs may be ingested, whether commands may run.
+Edit the file, restart, behavior changes. It's auditable by construction and
+gets mounted read-only into the container so the governance story holds in
+Docker too.
+
+**Latency observations.** First query after boot pays model load time (Ollama
+keeps the model warm after that). Retrieval is sub-second for a personal KB
+(hundreds of chunks). Token generation dominates: a 30B local model streams
+~10-30 tokens/sec on consumer hardware, so answers arrive as a stream rather
+than a wait-then-dump. Use a small model (llama3.2:3b, as the bundled Docker
+profile does) if latency matters more than answer depth.
+
+**What's deliberately not done.** No TLS, rate limiting, or multi-user RBAC
+(single-user localhost tool). PII redaction is regex-based, not NER — a
+deterministic, dependency-free trade-off. The audit log is plain JSONL, not
+hash-chained. No retroactive redaction of already-stored chunks — re-ingest
+to scrub.
 
 ## Files
 
 ```
 ~/.itkb/config.toml     Runtime config (auto-synced from PROGRAM.md)
 ~/.itkb/kb.sqlite       Your knowledge base (single file)
+~/.itkb/audit.jsonl     Structured JSON audit log (append-only)
 ~/itkb/PROGRAM.md       Central control — edit this to change behavior
 ```
 
 ## Tests
 
 ```bash
-pytest -v                # 37 unit tests (no Ollama needed)
+pytest -v                # 132 unit tests (no Ollama needed)
 ```
