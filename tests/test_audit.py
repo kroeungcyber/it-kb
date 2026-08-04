@@ -79,3 +79,19 @@ def test_web_query_logs_query_event(tmp_path, monkeypatch, mocker):
     assert query_events[0]["question"] == "restart nginx"
     assert query_events[0]["chunk_ids"] == ["1", "2"]
     assert query_events[0]["source_count"] == 2
+
+
+def test_login_logs_auth_event(tmp_path, monkeypatch):
+    monkeypatch.setenv("ITKB_SILENT", "1")
+    _tmp_cfg(tmp_path, monkeypatch, api_key="testkey123", session_secret="testsecret456")
+
+    from itkb.api.app import app
+    with TestClient(app) as client:
+        r = client.post("/api/login", json={"key": "testkey123"})
+        assert r.status_code == 200
+        r2 = client.post("/api/login", json={"key": "wrong"})
+        assert r2.status_code == 401
+
+    lines = (tmp_path / "audit.jsonl").read_text().strip().split("\n")
+    events = [json.loads(line) for line in lines if json.loads(line)["event"] == "auth.login"]
+    assert [e["success"] for e in events] == [True, False]

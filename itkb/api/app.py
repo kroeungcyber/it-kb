@@ -204,7 +204,9 @@ def api_login(req: LoginRequest, response: Response):
     from itkb.config import load_config
 
     cfg = load_config()
-    if not (cfg.api_key and _secrets.compare_digest(req.key, cfg.api_key)):
+    ok = bool(cfg.api_key) and _secrets.compare_digest(req.key, cfg.api_key)
+    log_event(cfg.db_path, "auth.login", success=ok)
+    if not ok:
         raise HTTPException(status_code=401, detail="Invalid API key")
     token = make_session_token(cfg.api_key, cfg.session_secret)
     response.set_cookie(
