@@ -95,3 +95,62 @@ def test_login_logs_auth_event(tmp_path, monkeypatch):
     lines = (tmp_path / "audit.jsonl").read_text().strip().split("\n")
     events = [json.loads(line) for line in lines if json.loads(line)["event"] == "auth.login"]
     assert [e["success"] for e in events] == [True, False]
+
+
+def test_ingest_logs_ingest_event(tmp_path, monkeypatch):
+    monkeypatch.setenv("ITKB_SILENT", "1")
+    _tmp_cfg(tmp_path, monkeypatch, api_key="testkey123", session_secret="testsecret456")
+
+    # /tmp is in PROGRAM.md's ingest whitelist (repo root PROGRAM.md).
+    import pathlib
+    import uuid
+    src = pathlib.Path("/tmp") / f"itkb-audit-test-{uuid.uuid4().hex}.md"
+    src.write_text("# Test\n\ncontent\n")
+
+    try:
+        from itkb.api.app import app
+        with TestClient(app) as client:
+            r = client.post(
+                "/api/ingest",
+                json={"path": str(src)},
+                headers={"X-API-Key": "testkey123"},
+            )
+            assert r.status_code == 200
+    finally:
+        src.unlink(missing_ok=True)
+
+    lines = (tmp_path / "audit.jsonl").read_text().strip().split("\n")
+    ev = [json.loads(line) for line in lines if json.loads(line)["event"] == "ingest"]
+    assert len(ev) == 1
+    assert ev[0]["source"] == str(src)
+    assert ev[0]["kind"] == "file"
+
+
+def test_delete_logs_delete_event(tmp_path, monkeypatch):
+    monkeypatch.setenv("ITKB_SILENT", "1")
+    _tmp_cfg(tmp_path, monkeypatch, api_key="testkey123", session_secret="testsecret456")
+
+    from itkb.store.db import init_db, upsert_document, doc_id
+    from itkb.store.models import Document
+    from datetime import datetime, timezone
+
+    init_db(str(tmp_path / "kb.sqlite"))
+    doc = Document(
+        id=doc_id("/kb/del.md"), source_path="/kb/del.md", title="Del",
+        file_type="md", ingested_at=datetime.now(timezone.utc).isoformat(),
+        chunk_count=1, mtime=1.0,
+    )
+    upsert_document(str(tmp_path / "kb.sqlite"), doc)
+
+    from itkb.api.app import app
+    with TestClient(app) as client:
+        r = client.delete(
+            f"/api/documents/{doc.id}",
+            headers={"X-API-Key": "testkey123"},
+        )
+        assert r.status_code == 200
+
+    lines = (tmp_path / "audit.jsonl").read_text().strip().split("\n")
+    ev = [json.loads(line) for line in lines if json.loads(line)["event"] == "document.delete"]
+    assert len(ev) == 1
+    assert ev[0]["doc_id"] == doc.id

@@ -129,12 +129,14 @@ def api_ingest(req: IngestRequest):
     cfg = load_config()
     if req.url:
         _ingest_url(req.url, cfg)
+        log_event(cfg.db_path, "ingest", source=req.url, kind="url")
         return {"status": "ok", "source": req.url}
     if req.path:
         p = Path(req.path)
         if not p.exists():
             raise HTTPException(status_code=404, detail=f"Path not found: {req.path}")
         _ingest_file(p, cfg)
+        log_event(cfg.db_path, "ingest", source=req.path, kind="file")
         return {"status": "ok", "source": req.path}
     raise HTTPException(status_code=400, detail="Provide path or url")
 
@@ -157,6 +159,7 @@ def api_list_documents():
 def api_delete_document(doc_id: str):
     cfg = load_config()
     delete_document(cfg.db_path, doc_id)
+    log_event(cfg.db_path, "document.delete", doc_id=doc_id)
     return {"status": "ok"}
 
 
