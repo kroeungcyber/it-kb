@@ -55,7 +55,12 @@ services:
         condition: service_healthy
     environment:
       OLLAMA_HOST: http://ollama:11434
-    command: sh -c "ollama pull llama3.2:3b && ollama pull nomic-embed-text"
+    # `ollama pull` opens an interactive TUI that fails without a TTY, so pull
+    # via the HTTP API instead (curl is not in the image — install it). The && 
+    # chain fails closed: any failed pull makes this container exit non-zero.
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - "apt-get update >/dev/null 2>&1 && apt-get install -y --no-install-recommends curl >/dev/null 2>&1 && curl -fsS -X POST http://ollama:11434/api/pull -d '{\"name\":\"llama3.2:3b\"}' >/dev/null && curl -fsS -X POST http://ollama:11434/api/pull -d '{\"name\":\"nomic-embed-text\"}' >/dev/null && echo models ready"
 
   # Optional: pre-load samples/ into the KB (use together with bundled).
   ingest-samples:
