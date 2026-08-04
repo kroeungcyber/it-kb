@@ -154,3 +154,24 @@ def test_delete_logs_delete_event(tmp_path, monkeypatch):
     ev = [json.loads(line) for line in lines if json.loads(line)["event"] == "document.delete"]
     assert len(ev) == 1
     assert ev[0]["doc_id"] == doc.id
+
+
+def test_command_logs_command_event(tmp_path, monkeypatch, mocker):
+    monkeypatch.setenv("ITKB_SILENT", "1")
+    _tmp_cfg(tmp_path, monkeypatch, audit_enabled=True)
+
+    from itkb.store.db import init_db
+    init_db(str(tmp_path / "kb.sqlite"))
+    mocker.patch("itkb.program.commands_enabled", return_value=True)
+
+    from itkb.agent.tools import run_command
+    output = run_command("true", confirm_fn=lambda cmd: True,
+                         db_path=str(tmp_path / "kb.sqlite"), query_id="qid9")
+    assert output is not None
+
+    lines = (tmp_path / "audit.jsonl").read_text().strip().split("\n")
+    ev = [json.loads(line) for line in lines if json.loads(line)["event"] == "command"]
+    assert len(ev) == 1
+    assert ev[0]["command"] == "true"
+    assert ev[0]["query_id"] == "qid9"
+    assert ev[0]["exit_code"] == 0

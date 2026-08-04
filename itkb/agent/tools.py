@@ -7,6 +7,7 @@ from typing import Callable
 import httpx
 import ollama
 
+from itkb.audit import log_event
 from itkb.store.db import hybrid_search_chunks, log_command
 
 BLOCKED_PATTERNS = ["rm -rf", "dd if=", "mkfs", "shutdown", "reboot", ":(){:|:&};:"]
@@ -178,6 +179,8 @@ def run_command(
         db_path, command, output, result.returncode,
         datetime.now(timezone.utc).isoformat(), query_id
     )
+    log_event(db_path, "command", command=command, query_id=query_id,
+              exit_code=result.returncode)
     return output or f"[exit code {result.returncode}]"
 
 
