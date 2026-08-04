@@ -21,6 +21,7 @@ class Config:
     api_key: str = ""
     session_secret: str = ""
     audit_enabled: bool = True
+    redact_pii: bool = True
 
 def load_config(apply_env: bool = True) -> Config:
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)

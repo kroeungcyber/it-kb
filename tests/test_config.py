@@ -83,3 +83,13 @@ def test_audit_enabled_defaults_true(tmp_path, monkeypatch):
     assert Config().audit_enabled is True
     save_config(Config(audit_enabled=False))
     assert load_config().audit_enabled is False
+
+def test_redact_pii_defaults_true(tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    import itkb.config as cfg_mod
+    cfg_mod.CONFIG_DIR = tmp_path / ".itkb"
+    cfg_mod.CONFIG_FILE = cfg_mod.CONFIG_DIR / "config.toml"
+
+    assert Config().redact_pii is True
+    save_config(Config(redact_pii=False))
+    assert load_config().redact_pii is False
