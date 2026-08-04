@@ -11,6 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from itkb.api.auth import make_session_token, require_auth
+from itkb.audit import log_event
 from itkb.config import load_config, save_config
 from itkb.store.db import init_db, list_documents, delete_document
 
@@ -106,8 +107,16 @@ def api_query(req: QueryRequest):
         return False
 
     def stream():
-        for token in run_agent(req.question, cfg, confirm_fn=confirm, query_id_holder=qid_holder):
+        collected_chunks: list = []
+        for token in run_agent(req.question, cfg, confirm_fn=confirm,
+                               collected_chunks=collected_chunks,
+                               query_id_holder=qid_holder):
             yield f"data: {json.dumps({'token': token})}\n\n"
+        log_event(cfg.db_path, "query",
+                  query_id=qid_holder[0] if qid_holder else "",
+                  question=req.question,
+                  chunk_ids=collected_chunks,
+                  source_count=len(collected_chunks))
         yield "data: [DONE]\n\n"
 
     return StreamingResponse(stream(), media_type="text/event-stream")

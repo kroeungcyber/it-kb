@@ -171,6 +171,7 @@ def query(
 ):
     """Ask a question. Streams the answer with citations."""
     from itkb.agent.loop import run_agent
+    from itkb.audit import log_event
     from itkb.store.db import init_db, save_query_context, stale_embed_model_count
 
     cfg = _cfg()
@@ -204,6 +205,11 @@ def query(
     console.print()
     if qid_holder:
         save_query_context(cfg.db_path, qid_holder[0], question, chunk_collector)
+        log_event(cfg.db_path, "query",
+                  query_id=qid_holder[0],
+                  question=question,
+                  chunk_ids=chunk_collector,
+                  source_count=len(chunk_collector))
 
 
 @app.command(name="list")
