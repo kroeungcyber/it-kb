@@ -156,6 +156,7 @@ def run_command(
     db_path: str,
     query_id: str,
     timeout: int = 30,
+    trusted: bool = False,
 ) -> str:
     from itkb.program import commands_enabled
 
@@ -164,7 +165,7 @@ def run_command(
 
     _assert_not_blocked(command)
 
-    if not confirm_fn(command):
+    if not trusted and not confirm_fn(command):
         return "[Command skipped by user]"
 
     result = subprocess.run(

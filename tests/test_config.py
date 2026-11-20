@@ -1,5 +1,16 @@
 # tests/test_config.py
+import pytest
+
 from itkb.config import Config, load_config, save_config
+
+
+@pytest.fixture(autouse=True)
+def _isolate_program(tmp_path, monkeypatch):
+    """Keep config tests independent of the repo's committed PROGRAM.md."""
+    p = tmp_path / "PROGRAM.md"
+    p.write_text("# empty program\n")
+    monkeypatch.setenv("ITKB_PROGRAM_PATH", str(p))
+
 
 def test_default_config_values():
     cfg = Config()
@@ -93,3 +104,42 @@ def test_redact_pii_defaults_true(tmp_path, monkeypatch):
     assert Config().redact_pii is True
     save_config(Config(redact_pii=False))
     assert load_config().redact_pii is False
+
+
+def test_program_models_drive_config(tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    import itkb.config as cfg_mod
+    cfg_mod.CONFIG_DIR = tmp_path / ".itkb"
+    cfg_mod.CONFIG_FILE = cfg_mod.CONFIG_DIR / "config.toml"
+
+    save_config(Config(model="toml-model", top_k=3))
+    p = tmp_path / "PROGRAM.md"
+    p.write_text(
+        "## 1. Models\n\n```yaml\nchat: program-model       # LLM for ReAct agent loop\n"
+        "embed: program-embed     # embedding model\n```\n\n"
+        "## 5. Query Behavior\n\n```yaml\ntop_k: 9                  # chunks per search\n"
+        "max_iterations: 7        # loop budget\ntrusted: true             # no prompt\n```\n"
+    )
+    monkeypatch.setenv("ITKB_PROGRAM_PATH", str(p))
+    cfg = load_config()
+    assert cfg.model == "program-model"
+    assert cfg.embed_model == "program-embed"
+    assert cfg.top_k == 9
+    assert cfg.max_iterations == 7
+    assert cfg.trusted is True
+
+
+def test_env_overrides_program(tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    import itkb.config as cfg_mod
+    cfg_mod.CONFIG_DIR = tmp_path / ".itkb"
+    cfg_mod.CONFIG_FILE = cfg_mod.CONFIG_DIR / "config.toml"
+
+    save_config(Config())
+    p = tmp_path / "PROGRAM.md"
+    p.write_text("## 1. Models\n\n```yaml\nchat: program-model   # comment\nembed: program-embed # comment\n```\n")
+    monkeypatch.setenv("ITKB_PROGRAM_PATH", str(p))
+    monkeypatch.setenv("ITKB_MODEL", "env-model")
+    cfg = load_config()
+    assert cfg.model == "env-model"           # env beats PROGRAM.md
+    assert cfg.embed_model == "program-embed"  # no env var for embed

@@ -23,6 +23,7 @@ def _parse_yaml_block(text: str, heading: str) -> dict:
     for line in m.group(1).strip().split("\n"):
         line = line.strip()
         if ":" in line and not line.startswith("#"):
+            line = line.split("#", 1)[0].rstrip()  # drop inline `# comment`
             key, _, val = line.partition(":")
             out[key.strip()] = val.strip().strip('"').strip("'")
     return out
@@ -103,3 +104,27 @@ def reload_config_from_program():
         cfg.trusted = settings["trusted"].lower() == "true"
     save_config(cfg)
     return cfg
+
+
+def set_program_value(key: str, value: str) -> bool:
+    """Update a governed value in PROGRAM.md in place.
+
+    Maps config keys to PROGRAM.md keys (model -> chat, embed_model -> embed);
+    other keys must match a PROGRAM.md line directly. Preserves trailing comments.
+    Returns True if the key was found and updated.
+    """
+    path = Path(os.environ.get("ITKB_PROGRAM_PATH", PROGRAM_PATH))
+    if not path.exists():
+        return False
+    program_key = {"model": "chat", "embed_model": "embed"}.get(key, key)
+    text = path.read_text()
+    pattern = re.compile(
+        rf"^(\s*{re.escape(program_key)}:\s*)\S+(\s*#.*)?$", re.MULTILINE
+    )
+    new_text, n = pattern.subn(
+        lambda m: f"{m.group(1)}{value}{m.group(2) or ''}", text
+    )
+    if n == 0:
+        return False
+    path.write_text(new_text)
+    return True

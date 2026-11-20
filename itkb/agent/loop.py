@@ -13,8 +13,6 @@ from itkb.agent.tools import (
 from itkb.ingestion.embedder import embed_query
 from itkb.config import Config
 
-MAX_ITERATIONS = 5
-
 
 def _format_chunk(c: dict) -> str:
     heading = c.get("metadata", {}).get("heading")
@@ -64,7 +62,7 @@ def run_agent(
 
     api_key = _resolve_api_key(cfg)
 
-    for _ in range(MAX_ITERATIONS):
+    for _ in range(cfg.max_iterations):
         response = ollama.chat(
             model=cfg.model,
             messages=messages,
@@ -113,7 +111,8 @@ def run_agent(
                 messages.append({"role": "tool", "content": result})
 
             elif name == "run_command":
-                output = run_command(args["command"], confirm_fn, cfg.db_path, query_id)
+                output = run_command(args["command"], confirm_fn, cfg.db_path, query_id,
+                                     trusted=cfg.trusted)
                 messages.append({"role": "tool", "content": output})
 
     # Forced final answer after max iterations

@@ -336,15 +336,28 @@ def config(
         if key not in d:
             console.print(f"[red]Unknown config key: {key}[/red]")
             raise typer.Exit(1)
-        # Coerce to the original type
-        original_type = type(d[key])
-        if original_type is bool:
-            d[key] = str(value).strip().lower() in ("1", "true", "yes", "on")
+        # Keys governed by PROGRAM.md are written there, not to config.toml.
+        if key in ("model", "embed_model", "top_k", "max_iterations", "trusted"):
+            from itkb.program import set_program_value
+            if key == "trusted":
+                val_str = "true" if str(value).strip().lower() in ("1", "true", "yes", "on") else "false"
+            else:
+                val_str = str(value).strip()
+            if set_program_value(key, val_str):
+                console.print(f"[green]Set {key} = {val_str} in PROGRAM.md[/green]")
+            else:
+                console.print(f"[red]Could not find '{key}' in PROGRAM.md — edit it manually.[/red]")
+                raise typer.Exit(1)
         else:
-            d[key] = original_type(value)
-        from itkb.config import Config
-        save_config(Config(**d))
-        console.print(f"[green]Set {key} = {value}[/green]")
+            # Coerce to the original type
+            original_type = type(d[key])
+            if original_type is bool:
+                d[key] = str(value).strip().lower() in ("1", "true", "yes", "on")
+            else:
+                d[key] = original_type(value)
+            from itkb.config import Config
+            save_config(Config(**d))
+            console.print(f"[green]Set {key} = {value}[/green]")
 
 
 @app.command()

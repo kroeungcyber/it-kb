@@ -1,0 +1,28 @@
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -e ".[dev]"
+      - name: Typecheck
+        run: mypy itkb
+      - name: Test
+        run: pytest -v
+      - name: Verify behavior (PII, denied-by-default, auth)
+        run: python pstack/skills/verify/checks.py
+        env:
+          ITKB_REPO: .
+      - name: Security gate (safe defaults, no secrets)
+        run: python pstack/ci/security-gate.py
+        env:
+          ITKB_REPO: .

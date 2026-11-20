@@ -54,3 +54,25 @@ def test_program_path_env_override(tmp_path, monkeypatch):
     monkeypatch.setenv("ITKB_PROGRAM_PATH", str(custom))
     from itkb.program import commands_enabled
     assert commands_enabled() is True
+
+
+def test_yaml_values_strip_inline_comments(mocker):
+    from itkb.program import get_models, get_query_settings
+
+    mocker.patch("itkb.program._read_program", return_value="""## 1. Models
+
+```yaml
+chat: gemma4:latest            # LLM for ReAct agent loop
+embed: embeddinggemma:latest    # embedding model
+```
+
+## 5. Query Behavior
+
+```yaml
+top_k: 5                        # chunks per search
+max_iterations: 5               # loop budget
+trusted: false                  # no prompt
+```
+""")
+    assert get_models() == {"chat": "gemma4:latest", "embed": "embeddinggemma:latest"}
+    assert get_query_settings() == {"top_k": "5", "max_iterations": "5", "trusted": "false"}

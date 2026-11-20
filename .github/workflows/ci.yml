@@ -18,3 +18,11 @@ jobs:
         run: mypy itkb
       - name: Test
         run: pytest -v
+      - name: Verify behavior (PII, denied-by-default, auth)
+        run: python pstack/skills/verify/checks.py
+        env:
+          ITKB_REPO: .
+      - name: Security gate (safe defaults, no secrets)
+        run: python pstack/ci/security-gate.py
+        env:
+          ITKB_REPO: .
